@@ -384,10 +384,19 @@
         let mouseDown = false;
         let mouseX = 0, mouseY = 0;
         let cameraRotationX = 0, cameraRotationY = 0;
+        let targetCameraRotationX = 0, targetCameraRotationY = 0;
         let cameraDistance = 10;
+        let targetCameraDistance = 10;
         let autoFocus = true;
         let systemCenter = new THREE.Vector3(0, 0, 0);
+        let targetSystemCenter = new THREE.Vector3(0, 0, 0);
         let systemSize = 5;
+        
+        // Smoothing parameters
+        const MOUSE_SENSITIVITY = 0.003; // Reduced sensitivity
+        const ZOOM_SENSITIVITY = 0.005; // Reduced zoom sensitivity
+        const CAMERA_SMOOTHING = 0.08; // Camera movement smoothing
+        const CENTER_SMOOTHING = 0.05; // Center tracking smoothing
 
         function initThreeJS() {
             // Scene
@@ -594,13 +603,11 @@
                 const deltaX = e.clientX - mouseX;
                 const deltaY = e.clientY - mouseY;
 
-                cameraRotationY += deltaX * 0.01;
-                cameraRotationX += deltaY * 0.01;
+                targetCameraRotationY += deltaX * MOUSE_SENSITIVITY;
+                targetCameraRotationX += deltaY * MOUSE_SENSITIVITY;
 
                 // Limit vertical rotation
-                cameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraRotationX));
-
-                updateCameraPosition();
+                targetCameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, targetCameraRotationX));
 
                 mouseX = e.clientX;
                 mouseY = e.clientY;
@@ -611,9 +618,9 @@
             });
 
             canvas.addEventListener('wheel', (e) => {
-                cameraDistance += e.deltaY * 0.01;
-                cameraDistance = Math.max(2, Math.min(50, cameraDistance));
-                updateCameraPosition();
+                e.preventDefault();
+                targetCameraDistance += e.deltaY * ZOOM_SENSITIVITY;
+                targetCameraDistance = Math.max(2, Math.min(50, targetCameraDistance));
             });
 
             window.addEventListener('resize', () => {
@@ -624,20 +631,31 @@
         }
 
         function updateCameraPosition() {
+            // Smooth camera rotation transitions
+            cameraRotationX += (targetCameraRotationX - cameraRotationX) * CAMERA_SMOOTHING;
+            cameraRotationY += (targetCameraRotationY - cameraRotationY) * CAMERA_SMOOTHING;
+            
+            // Smooth distance transitions
+            cameraDistance += (targetCameraDistance - cameraDistance) * CAMERA_SMOOTHING;
+
             if (autoFocus && stars.length > 0) {
                 // Calculate center of mass
-                systemCenter.set(0, 0, 0);
+                const newCenter = new THREE.Vector3(0, 0, 0);
                 let totalMass = 0;
 
                 stars.forEach((star, i) => {
                     const mass = star.userData.mass || 1;
-                    systemCenter.add(new THREE.Vector3().copy(star.position).multiplyScalar(mass));
+                    newCenter.add(new THREE.Vector3().copy(star.position).multiplyScalar(mass));
                     totalMass += mass;
                 });
 
                 if (totalMass > 0) {
-                    systemCenter.divideScalar(totalMass);
+                    newCenter.divideScalar(totalMass);
                 }
+
+                // Smooth center tracking to prevent jumps
+                targetSystemCenter.copy(newCenter);
+                systemCenter.lerp(targetSystemCenter, CENTER_SMOOTHING);
 
                 // Calculate system size (maximum distance from center)
                 systemSize = 0;
@@ -649,19 +667,25 @@
                 // Set camera distance based on system size with bounds
                 const minDistance = 3;
                 const maxDistance = 15;
-                const targetDistance = Math.max(minDistance, Math.min(maxDistance, systemSize * 4 + 2));
-
-                // Smooth camera distance changes
-                cameraDistance = cameraDistance * 0.95 + targetDistance * 0.05;
-
-                // Position camera
-                const radius = cameraDistance;
-                camera.position.x = systemCenter.x + radius * Math.sin(cameraRotationY) * Math.cos(cameraRotationX);
-                camera.position.y = systemCenter.y + radius * Math.sin(cameraRotationX);
-                camera.position.z = systemCenter.z + radius * Math.cos(cameraRotationY) * Math.cos(cameraRotationX);
-
-                camera.lookAt(systemCenter);
+                const autoTargetDistance = Math.max(minDistance, Math.min(maxDistance, systemSize * 4 + 2));
+                
+                // Only adjust target distance if auto-focus is controlling it
+                if (!mouseDown) {
+                    targetCameraDistance += (autoTargetDistance - targetCameraDistance) * 0.02; // Very slow auto-adjustment
+                }
             }
+
+            // Position camera with smooth movements
+            const radius = cameraDistance;
+            const newPosition = new THREE.Vector3(
+                systemCenter.x + radius * Math.sin(cameraRotationY) * Math.cos(cameraRotationX),
+                systemCenter.y + radius * Math.sin(cameraRotationX),
+                systemCenter.z + radius * Math.cos(cameraRotationY) * Math.cos(cameraRotationX)
+            );
+
+            // Smooth camera position transitions
+            camera.position.lerp(newPosition, CAMERA_SMOOTHING);
+            camera.lookAt(systemCenter);
         }
 
         function calculateSystemBounds(positions) {
@@ -682,8 +706,8 @@
                 }
             });
 
-            // Calculate center of the system
-            systemCenter.set(
+            // Calculate center of the system - this will be handled in updateCameraPosition
+            const newCenter = new THREE.Vector3(
                 (minX + maxX) / 2,
                 (minY + maxY) / 2,
                 (minZ + maxZ) / 2
@@ -695,12 +719,9 @@
             const sizeZ = maxZ - minZ;
             systemSize = Math.max(sizeX, sizeY, sizeZ);
 
-            // Auto-adjust camera distance based on system size with limits
-            if (autoFocus) {
-                const targetDistance = Math.max(systemSize * 2.5, 8);
-                // Prevent infinite zoom-out by clamping the target distance
-                const clampedTargetDistance = Math.min(targetDistance, 100);
-                cameraDistance = Math.max(5, Math.min(50, cameraDistance * 0.98 + clampedTargetDistance * 0.02)); // Slower, limited transition
+            // Set target for smooth tracking (handled in updateCameraPosition)
+            if (autoFocus && !mouseDown) {
+                targetSystemCenter.copy(newCenter);
             }
         }
 
@@ -747,14 +768,14 @@
                 }
             }
 
-            // Update camera position if auto-focus is enabled
-            if (autoFocus) {
-                updateCameraPosition();
-            }
+            // Camera position is now updated every frame in animate() for smoothness
         }
 
         function animate() {
             animationId = requestAnimationFrame(animate);
+
+            // Update camera position with smooth transitions every frame
+            updateCameraPosition();
 
             // Enhanced star effects
             stars.forEach((star, i) => {
@@ -992,8 +1013,13 @@
             autoFocus = document.getElementById('autoFocusToggle').checked;
             if (!autoFocus) {
                 // Reset to center view when disabling auto-focus
+                targetSystemCenter.set(0, 0, 0);
                 systemCenter.set(0, 0, 0);
-                updateCameraPosition();
+            } else {
+                // Initialize target rotation values when enabling auto-focus
+                targetCameraRotationX = cameraRotationX;
+                targetCameraRotationY = cameraRotationY;
+                targetCameraDistance = cameraDistance;
             }
         }
 
