@@ -441,78 +441,253 @@
         }
 
         function createStarField() {
-            // Dense starfield with twinkling effect
-            const starGeometry = new THREE.BufferGeometry();
-            const starCount = 20000;
-            const starPositions = new Float32Array(starCount * 3);
-            const starColors = new Float32Array(starCount * 3);
-            const starSizes = new Float32Array(starCount);
-            const starOpacities = new Float32Array(starCount);
+            // Create a magnificent galaxy with spiral arms and dense star clusters
+            window.starFields = [];
+            window.starBaseOpacities = [];
 
-            for (let i = 0; i < starCount; i++) {
-                const i3 = i * 3;
-
-                // Random positions in a large sphere
-                const radius = 500 + Math.random() * 2000;
-                const phi = Math.random() * Math.PI * 2;
-                const theta = Math.random() * Math.PI;
-
-                starPositions[i3] = radius * Math.sin(theta) * Math.cos(phi);
-                starPositions[i3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
-                starPositions[i3 + 2] = radius * Math.cos(theta);
-
-                // Enhanced star colors with more variety
-                const colorType = Math.random();
-                if (colorType < 0.5) {
-                    // White/blue stars
-                    starColors[i3] = 0.8 + Math.random() * 0.2;
-                    starColors[i3 + 1] = 0.9 + Math.random() * 0.1;
-                    starColors[i3 + 2] = 1.0;
-                } else if (colorType < 0.7) {
-                    // Yellow stars
-                    starColors[i3] = 1.0;
-                    starColors[i3 + 1] = 0.9 + Math.random() * 0.1;
-                    starColors[i3 + 2] = 0.4 + Math.random() * 0.3;
-                } else if (colorType < 0.85) {
-                    // Red stars
-                    starColors[i3] = 1.0;
-                    starColors[i3 + 1] = 0.3 + Math.random() * 0.3;
-                    starColors[i3 + 2] = 0.2 + Math.random() * 0.2;
-                } else {
-                    // Orange stars
-                    starColors[i3] = 1.0;
-                    starColors[i3 + 1] = 0.6 + Math.random() * 0.2;
-                    starColors[i3 + 2] = 0.1 + Math.random() * 0.3;
-                }
-
-                // Variable star sizes and initial opacities
-                starSizes[i] = Math.random() * 3 + 0.5;
-                starOpacities[i] = 0.3 + Math.random() * 0.7;
-            }
-
-            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-            starGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
-            starGeometry.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
-            starGeometry.setAttribute('opacity', new THREE.BufferAttribute(starOpacities, 1));
-
-            const starMaterial = new THREE.PointsMaterial({ 
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.9,
-                sizeAttenuation: false,
-                blending: THREE.AdditiveBlending
-            });
-
-            const starField = new THREE.Points(starGeometry, starMaterial);
-            scene.add(starField);
-
-            // Store reference for animation
-            window.starField = starField;
-            window.starBaseOpacities = starOpacities.slice();
+            // Main galaxy with spiral arms
+            createGalaxyStructure();
+            
+            // Dense background stars
+            createBackgroundStars();
+            
+            // Bright foreground stars
+            createForegroundStars();
 
             // Add nebula and stardust
             createLiveNebula();
             createStardust();
+        }
+
+        function createGalaxyStructure() {
+            // Create spiral galaxy with multiple arms
+            const galaxyGeometry = new THREE.BufferGeometry();
+            const galaxyCount = 80000; // Massive galaxy!
+            const galaxyPositions = new Float32Array(galaxyCount * 3);
+            const galaxyColors = new Float32Array(galaxyCount * 3);
+            const galaxySizes = new Float32Array(galaxyCount);
+            const galaxyOpacities = new Float32Array(galaxyCount);
+
+            const spiralArms = 4; // Four major spiral arms
+            const galaxyRadius = 3000;
+            const galaxyThickness = 400;
+
+            for (let i = 0; i < galaxyCount; i++) {
+                const i3 = i * 3;
+
+                // Create spiral arm pattern
+                const armIndex = Math.floor(Math.random() * spiralArms);
+                const armAngle = (armIndex * Math.PI * 2) / spiralArms;
+                
+                // Distance from galactic center (weighted toward center)
+                const r = Math.pow(Math.random(), 0.8) * galaxyRadius;
+                
+                // Spiral angle based on distance
+                const spiralTightness = 0.003;
+                const theta = armAngle + r * spiralTightness + (Math.random() - 0.5) * 0.8;
+                
+                // Add some randomness to create realistic arm structure
+                const armWidth = 200 + Math.random() * 300;
+                const offsetR = r + (Math.random() - 0.5) * armWidth;
+                const offsetTheta = theta + (Math.random() - 0.5) * 0.3;
+                
+                // Convert to cartesian coordinates
+                galaxyPositions[i3] = offsetR * Math.cos(offsetTheta);
+                galaxyPositions[i3 + 1] = (Math.random() - 0.5) * galaxyThickness * Math.exp(-r / galaxyRadius);
+                galaxyPositions[i3 + 2] = offsetR * Math.sin(offsetTheta);
+
+                // Color based on position and type
+                const distanceFromCenter = Math.sqrt(galaxyPositions[i3] ** 2 + galaxyPositions[i3 + 2] ** 2);
+                const centerFactor = Math.exp(-distanceFromCenter / (galaxyRadius * 0.3));
+                
+                const starType = Math.random();
+                if (starType < 0.4) {
+                    // Blue-white young stars (in spiral arms)
+                    galaxyColors[i3] = 0.7 + Math.random() * 0.3;
+                    galaxyColors[i3 + 1] = 0.8 + Math.random() * 0.2;
+                    galaxyColors[i3 + 2] = 1.0;
+                } else if (starType < 0.7) {
+                    // Yellow-white main sequence stars
+                    galaxyColors[i3] = 1.0;
+                    galaxyColors[i3 + 1] = 0.9 + Math.random() * 0.1;
+                    galaxyColors[i3 + 2] = 0.6 + Math.random() * 0.3;
+                } else if (starType < 0.85) {
+                    // Orange giants (more common toward center)
+                    galaxyColors[i3] = 1.0;
+                    galaxyColors[i3 + 1] = 0.5 + Math.random() * 0.3 + centerFactor * 0.2;
+                    galaxyColors[i3 + 2] = 0.2 + Math.random() * 0.2;
+                } else {
+                    // Red stars and red giants
+                    galaxyColors[i3] = 1.0;
+                    galaxyColors[i3 + 1] = 0.2 + Math.random() * 0.3;
+                    galaxyColors[i3 + 2] = 0.1 + Math.random() * 0.2;
+                }
+
+                // Size varies with distance and brightness
+                const sizeFactor = 1 + centerFactor * 2;
+                galaxySizes[i] = (Math.random() * 2 + 0.5) * sizeFactor;
+                
+                // Opacity varies with distance from center
+                galaxyOpacities[i] = 0.2 + Math.random() * 0.6 + centerFactor * 0.3;
+            }
+
+            galaxyGeometry.setAttribute('position', new THREE.BufferAttribute(galaxyPositions, 3));
+            galaxyGeometry.setAttribute('color', new THREE.BufferAttribute(galaxyColors, 3));
+            galaxyGeometry.setAttribute('size', new THREE.BufferAttribute(galaxySizes, 1));
+            galaxyGeometry.setAttribute('opacity', new THREE.BufferAttribute(galaxyOpacities, 1));
+
+            const galaxyMaterial = new THREE.PointsMaterial({ 
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                sizeAttenuation: false,
+                blending: THREE.AdditiveBlending
+            });
+
+            const galaxy = new THREE.Points(galaxyGeometry, galaxyMaterial);
+            scene.add(galaxy);
+
+            window.starFields.push(galaxy);
+            window.starBaseOpacities.push(galaxyOpacities.slice());
+        }
+
+        function createBackgroundStars() {
+            // Distant background stars throughout the universe
+            const bgGeometry = new THREE.BufferGeometry();
+            const bgCount = 50000;
+            const bgPositions = new Float32Array(bgCount * 3);
+            const bgColors = new Float32Array(bgCount * 3);
+            const bgSizes = new Float32Array(bgCount);
+            const bgOpacities = new Float32Array(bgCount);
+
+            for (let i = 0; i < bgCount; i++) {
+                const i3 = i * 3;
+
+                // Distribute in a very large sphere
+                const radius = 5000 + Math.random() * 10000;
+                const phi = Math.random() * Math.PI * 2;
+                const theta = Math.random() * Math.PI;
+
+                bgPositions[i3] = radius * Math.sin(theta) * Math.cos(phi);
+                bgPositions[i3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
+                bgPositions[i3 + 2] = radius * Math.cos(theta);
+
+                // Mostly dim, distant stars
+                const colorType = Math.random();
+                if (colorType < 0.6) {
+                    // Dim white stars
+                    bgColors[i3] = 0.8 + Math.random() * 0.2;
+                    bgColors[i3 + 1] = 0.8 + Math.random() * 0.2;
+                    bgColors[i3 + 2] = 0.9 + Math.random() * 0.1;
+                } else if (colorType < 0.8) {
+                    // Faint blue stars
+                    bgColors[i3] = 0.6 + Math.random() * 0.2;
+                    bgColors[i3 + 1] = 0.7 + Math.random() * 0.2;
+                    bgColors[i3 + 2] = 1.0;
+                } else {
+                    // Faint red stars
+                    bgColors[i3] = 0.9 + Math.random() * 0.1;
+                    bgColors[i3 + 1] = 0.4 + Math.random() * 0.2;
+                    bgColors[i3 + 2] = 0.3 + Math.random() * 0.2;
+                }
+
+                bgSizes[i] = Math.random() * 1.5 + 0.3;
+                bgOpacities[i] = 0.1 + Math.random() * 0.4;
+            }
+
+            bgGeometry.setAttribute('position', new THREE.BufferAttribute(bgPositions, 3));
+            bgGeometry.setAttribute('color', new THREE.BufferAttribute(bgColors, 3));
+            bgGeometry.setAttribute('size', new THREE.BufferAttribute(bgSizes, 1));
+            bgGeometry.setAttribute('opacity', new THREE.BufferAttribute(bgOpacities, 1));
+
+            const bgMaterial = new THREE.PointsMaterial({ 
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6,
+                sizeAttenuation: false,
+                blending: THREE.AdditiveBlending
+            });
+
+            const backgroundStars = new THREE.Points(bgGeometry, bgMaterial);
+            scene.add(backgroundStars);
+
+            window.starFields.push(backgroundStars);
+            window.starBaseOpacities.push(bgOpacities.slice());
+        }
+
+        function createForegroundStars() {
+            // Bright, nearby stars for dramatic effect
+            const fgGeometry = new THREE.BufferGeometry();
+            const fgCount = 3000;
+            const fgPositions = new Float32Array(fgCount * 3);
+            const fgColors = new Float32Array(fgCount * 3);
+            const fgSizes = new Float32Array(fgCount);
+            const fgOpacities = new Float32Array(fgCount);
+
+            for (let i = 0; i < fgCount; i++) {
+                const i3 = i * 3;
+
+                // Closer to the simulation area but still distant enough
+                const radius = 200 + Math.random() * 800;
+                const phi = Math.random() * Math.PI * 2;
+                const theta = Math.random() * Math.PI;
+
+                fgPositions[i3] = radius * Math.sin(theta) * Math.cos(phi);
+                fgPositions[i3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
+                fgPositions[i3 + 2] = radius * Math.cos(theta);
+
+                // Bright, colorful stars
+                const colorType = Math.random();
+                if (colorType < 0.25) {
+                    // Brilliant blue giants
+                    fgColors[i3] = 0.8 + Math.random() * 0.2;
+                    fgColors[i3 + 1] = 0.9 + Math.random() * 0.1;
+                    fgColors[i3 + 2] = 1.0;
+                } else if (colorType < 0.45) {
+                    // Bright white stars
+                    fgColors[i3] = 1.0;
+                    fgColors[i3 + 1] = 1.0;
+                    fgColors[i3 + 2] = 1.0;
+                } else if (colorType < 0.65) {
+                    // Golden yellow stars
+                    fgColors[i3] = 1.0;
+                    fgColors[i3 + 1] = 0.9 + Math.random() * 0.1;
+                    fgColors[i3 + 2] = 0.4 + Math.random() * 0.4;
+                } else if (colorType < 0.8) {
+                    // Orange giants
+                    fgColors[i3] = 1.0;
+                    fgColors[i3 + 1] = 0.6 + Math.random() * 0.2;
+                    fgColors[i3 + 2] = 0.2 + Math.random() * 0.3;
+                } else {
+                    // Red supergiants
+                    fgColors[i3] = 1.0;
+                    fgColors[i3 + 1] = 0.3 + Math.random() * 0.2;
+                    fgColors[i3 + 2] = 0.1 + Math.random() * 0.2;
+                }
+
+                // Larger, brighter stars
+                fgSizes[i] = Math.random() * 4 + 1;
+                fgOpacities[i] = 0.6 + Math.random() * 0.4;
+            }
+
+            fgGeometry.setAttribute('position', new THREE.BufferAttribute(fgPositions, 3));
+            fgGeometry.setAttribute('color', new THREE.BufferAttribute(fgColors, 3));
+            fgGeometry.setAttribute('size', new THREE.BufferAttribute(fgSizes, 1));
+            fgGeometry.setAttribute('opacity', new THREE.BufferAttribute(fgOpacities, 1));
+
+            const fgMaterial = new THREE.PointsMaterial({ 
+                vertexColors: true,
+                transparent: true,
+                opacity: 1.0,
+                sizeAttenuation: false,
+                blending: THREE.AdditiveBlending
+            });
+
+            const foregroundStars = new THREE.Points(fgGeometry, fgMaterial);
+            scene.add(foregroundStars);
+
+            window.starFields.push(foregroundStars);
+            window.starBaseOpacities.push(fgOpacities.slice());
         }
 
         function createLiveNebula() {
@@ -933,15 +1108,27 @@
         function animateBackground() {
             const time = Date.now() * 0.001;
 
-            // Animate twinkling stars
-            if (window.starField && window.starBaseOpacities) {
-                const opacities = window.starField.geometry.attributes.opacity;
-                for (let i = 0; i < opacities.count; i++) {
-                    const baseOpacity = window.starBaseOpacities[i];
-                    const twinkle = Math.sin(time * (2 + Math.sin(i * 0.01)) + i * 0.1) * 0.3;
-                    opacities.array[i] = Math.max(0.1, baseOpacity + twinkle);
+            // Animate twinkling stars across all star fields
+            if (window.starFields && window.starBaseOpacities) {
+                window.starFields.forEach((starField, fieldIndex) => {
+                    const opacities = starField.geometry.attributes.opacity;
+                    const baseOpacities = window.starBaseOpacities[fieldIndex];
+                    
+                    for (let i = 0; i < opacities.count; i++) {
+                        const baseOpacity = baseOpacities[i];
+                        // Different twinkling patterns for different star fields
+                        const twinkleSpeed = fieldIndex === 0 ? 1.5 : (fieldIndex === 1 ? 0.8 : 2.2);
+                        const twinkle = Math.sin(time * twinkleSpeed * (1.5 + Math.sin(i * 0.01)) + i * 0.1) * 0.3;
+                        opacities.array[i] = Math.max(0.05, baseOpacity + twinkle * baseOpacity);
+                    }
+                    opacities.needsUpdate = true;
+                });
+
+                // Slowly rotate the galaxy for dynamic beauty
+                if (window.starFields[0]) {
+                    window.starFields[0].rotation.y += 0.0001;
+                    window.starFields[0].rotation.x += 0.00005;
                 }
-                opacities.needsUpdate = true;
             }
 
             // Animate nebula clouds
