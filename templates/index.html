@@ -245,27 +245,15 @@
         .dropdown-content.show {
             display: block;
         }
-
-        .error-message {
-            background: rgba(244, 67, 54, 0.3);
-            color: #e57373;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            font-size: 14px;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
-    <div id="loadingMessage" class="loading">Loading 3D Simulation...</div>
     <canvas id="canvas"></canvas>
 
     <div class="controls">
         <h2>🌟 Three Body Simulation</h2>
 
         <div id="status" class="status stopped">Simulation Stopped</div>
-        <div id="errorMessage" class="error-message" style="display: none;">Loading 3D engine...</div>
 
         <div class="button-group">
             <button onclick="startSimulation()">▶️ Start</button>
@@ -381,22 +369,8 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/three@0.144.0/build/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // Global error handling
-        window.addEventListener('error', function(e) {
-            console.error('JavaScript Error:', e.error);
-            document.getElementById('errorMessage').textContent = 'JavaScript Error: ' + e.message;
-            document.getElementById('errorMessage').style.display = 'block';
-        });
-
-        // Check if Three.js loaded
-        if (typeof THREE === 'undefined') {
-            document.getElementById('errorMessage').textContent = 'Failed to load Three.js library. Please refresh the page.';
-            document.getElementById('errorMessage').style.display = 'block';
-            document.getElementById('loadingMessage').style.display = 'none';
-        }
-
         // Three.js scene setup
         let scene, camera, renderer, controls;
         let stars = [];
@@ -417,182 +391,205 @@
         let systemCenter = new THREE.Vector3(0, 0, 0);
         let targetSystemCenter = new THREE.Vector3(0, 0, 0);
         let systemSize = 5;
-
+        
         // Animation interpolation for smooth motion
         let lastUpdateTime = 0;
         let starPositions = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
         let targetStarPositions = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
         let starVelocities = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-
-        // Smoothing parameters
-        const MOUSE_SENSITIVITY = 0.002;
-        const ZOOM_SENSITIVITY = 0.003;
-        const CAMERA_SMOOTHING = 0.12;
-        const CENTER_SMOOTHING = 0.08;
-        const STAR_INTERPOLATION = 0.15;
+        
+        // Smoothing parameters (enhanced for professional animation)
+        const MOUSE_SENSITIVITY = 0.002; // Further reduced sensitivity
+        const ZOOM_SENSITIVITY = 0.003; // Further reduced zoom sensitivity
+        const CAMERA_SMOOTHING = 0.12; // Increased camera smoothing
+        const CENTER_SMOOTHING = 0.08; // Increased center tracking smoothing
+        const STAR_INTERPOLATION = 0.15; // Star position interpolation
 
         function initThreeJS() {
-            try {
-                // Hide loading message
-                document.getElementById('loadingMessage').style.display = 'none';
-                document.getElementById('errorMessage').style.display = 'none';
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000011);
 
-                // Scene
-                scene = new THREE.Scene();
-                scene.background = new THREE.Color(0x000011);
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
 
-                // Camera
-                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-                camera.position.set(0, 5, 10);
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('canvas'),
+                antialias: true 
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-                // Renderer
-                renderer = new THREE.WebGLRenderer({ 
-                    canvas: document.getElementById('canvas'),
-                    antialias: true 
-                });
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                renderer.shadowMap.enabled = true;
-                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            // Add starfield background
+            createStarField();
 
-                // Add starfield background
-                createStarField();
+            // Create stars
+            createStars();
 
-                // Create stars
-                createStars();
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+            scene.add(ambientLight);
 
-                // Add lighting
-                const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
-                scene.add(ambientLight);
+            // Controls
+            setupControls();
 
-                // Controls
-                setupControls();
-
-                // Start render loop
-                animate();
-
-                console.log('Three.js initialized successfully');
-            } catch (error) {
-                console.error('Error initializing Three.js:', error);
-                document.getElementById('errorMessage').textContent = 'Error initializing 3D graphics: ' + error.message;
-                document.getElementById('errorMessage').style.display = 'block';
-            }
+            // Start render loop
+            animate();
         }
 
         function createStarField() {
-            // Create a simple starfield
+            // Dense starfield
             const starGeometry = new THREE.BufferGeometry();
-            const starCount = 5000;
+            const starCount = 15000;
             const starPositions = new Float32Array(starCount * 3);
+            const starColors = new Float32Array(starCount * 3);
+            const starSizes = new Float32Array(starCount);
 
             for (let i = 0; i < starCount; i++) {
                 const i3 = i * 3;
-                const radius = 500 + Math.random() * 1000;
+
+                // Random positions in a large sphere
+                const radius = 500 + Math.random() * 1500;
                 const phi = Math.random() * Math.PI * 2;
                 const theta = Math.random() * Math.PI;
 
                 starPositions[i3] = radius * Math.sin(theta) * Math.cos(phi);
                 starPositions[i3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
                 starPositions[i3 + 2] = radius * Math.cos(theta);
+
+                // Star colors - mix of white, blue, yellow, red
+                const colorType = Math.random();
+                if (colorType < 0.6) {
+                    // White/blue stars
+                    starColors[i3] = 0.8 + Math.random() * 0.2;
+                    starColors[i3 + 1] = 0.9 + Math.random() * 0.1;
+                    starColors[i3 + 2] = 1.0;
+                } else if (colorType < 0.8) {
+                    // Yellow stars
+                    starColors[i3] = 1.0;
+                    starColors[i3 + 1] = 0.9 + Math.random() * 0.1;
+                    starColors[i3 + 2] = 0.4 + Math.random() * 0.3;
+                } else {
+                    // Red stars
+                    starColors[i3] = 1.0;
+                    starColors[i3 + 1] = 0.3 + Math.random() * 0.3;
+                    starColors[i3 + 2] = 0.2 + Math.random() * 0.2;
+                }
+
+                // Variable star sizes
+                starSizes[i] = Math.random() * 2 + 0.5;
             }
 
             starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            starGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+            starGeometry.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
 
             const starMaterial = new THREE.PointsMaterial({ 
-                color: 0xffffff,
-                size: 2,
+                vertexColors: true,
                 transparent: true,
-                opacity: 0.8,
+                opacity: 0.9,
                 sizeAttenuation: false
             });
 
             const starField = new THREE.Points(starGeometry, starMaterial);
             scene.add(starField);
 
-            // Add nebula backgrounds with simple geometry
+            // Add nebula-like background
             createNebulaBackground();
         }
 
         function createNebulaBackground() {
-            // Create simple nebula clouds
-            const nebulaConfigs = [
-                { color: 0x8B4CB8, opacity: 0.1, size: 800, position: [300, 200, -400] },
-                { color: 0x1E88E5, opacity: 0.08, size: 600, position: [-200, 300, 400] },
-                { color: 0xFF6B35, opacity: 0.06, size: 500, position: [400, -300, 200] }
+            // Create multiple colored nebula clouds
+            const nebulaColors = [
+                { color: 0x4a0e4e, opacity: 0.1 }, // Purple
+                { color: 0x0e2a4a, opacity: 0.08 }, // Blue
+                { color: 0x4a1e0e, opacity: 0.06 }, // Orange
+                { color: 0x0e4a2a, opacity: 0.05 }  // Green
             ];
 
-            nebulaConfigs.forEach((config) => {
-                const nebulaGeometry = new THREE.SphereGeometry(config.size, 16, 16);
+            nebulaColors.forEach((nebula, index) => {
+                const nebulaGeometry = new THREE.SphereGeometry(800 + index * 100, 32, 32);
                 const nebulaMaterial = new THREE.MeshBasicMaterial({
-                    color: config.color,
+                    color: nebula.color,
                     transparent: true,
-                    opacity: config.opacity,
-                    side: THREE.BackSide,
-                    blending: THREE.AdditiveBlending
+                    opacity: nebula.opacity,
+                    side: THREE.BackSide
                 });
 
                 const nebulaMesh = new THREE.Mesh(nebulaGeometry, nebulaMaterial);
-                nebulaMesh.position.set(...config.position);
+                nebulaMesh.position.set(
+                    (Math.random() - 0.5) * 500,
+                    (Math.random() - 0.5) * 500,
+                    (Math.random() - 0.5) * 500
+                );
                 scene.add(nebulaMesh);
             });
         }
 
         function createStars() {
             for (let i = 0; i < 3; i++) {
+                // Star geometry with enhanced effects
                 const starGroup = new THREE.Group();
 
-                // Main star body
-                const baseRadius = 0.10 + i * 0.025;
+                // Main star body with variable size based on mass
+                const baseRadius = 0.08 + i * 0.02;
                 const starGeometry = new THREE.SphereGeometry(baseRadius, 32, 32);
-                const starMaterial = new THREE.MeshBasicMaterial({
+                const starMaterial = new THREE.MeshPhongMaterial({ 
                     color: starColors[i],
-                    emissive: new THREE.Color(starColors[i]).multiplyScalar(0.3)
+                    emissive: starColors[i],
+                    emissiveIntensity: 0.4,
+                    shininess: 100,
+                    transparent: true,
+                    opacity: 0.9
                 });
-
                 const star = new THREE.Mesh(starGeometry, starMaterial);
 
-                // Multiple glow layers for realistic effect
-                const glowLayers = [
-                    { radius: baseRadius * 2, opacity: 0.4 },
-                    { radius: baseRadius * 3, opacity: 0.2 },
-                    { radius: baseRadius * 4.5, opacity: 0.1 }
-                ];
-
-                glowLayers.forEach((layer) => {
-                    const glowGeometry = new THREE.SphereGeometry(layer.radius, 16, 16);
-                    const glowMaterial = new THREE.MeshBasicMaterial({
-                        color: starColors[i],
-                        transparent: true,
-                        opacity: layer.opacity,
-                        side: THREE.BackSide,
-                        blending: THREE.AdditiveBlending
-                    });
-                    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-                    starGroup.add(glow);
+                // Inner glow
+                const innerGlowGeometry = new THREE.SphereGeometry(baseRadius * 1.5, 16, 16);
+                const innerGlowMaterial = new THREE.MeshBasicMaterial({
+                    color: starColors[i],
+                    transparent: true,
+                    opacity: 0.4
                 });
+                const innerGlow = new THREE.Mesh(innerGlowGeometry, innerGlowMaterial);
 
-                // Point light
-                const light = new THREE.PointLight(starColors[i], 2, 100, 2);
+                // Outer glow
+                const outerGlowGeometry = new THREE.SphereGeometry(baseRadius * 2.5, 16, 16);
+                const outerGlowMaterial = new THREE.MeshBasicMaterial({
+                    color: starColors[i],
+                    transparent: true,
+                    opacity: 0.2
+                });
+                const outerGlow = new THREE.Mesh(outerGlowGeometry, outerGlowMaterial);
+
+                // Point light for each star with enhanced properties
+                const light = new THREE.PointLight(starColors[i], 2, 100);
                 light.castShadow = true;
+                light.shadow.camera.near = 0.1;
+                light.shadow.camera.far = 100;
+                light.shadow.mapSize.width = 1024;
+                light.shadow.mapSize.height = 1024;
 
                 starGroup.add(star);
+                starGroup.add(innerGlow);
+                starGroup.add(outerGlow);
                 starGroup.add(light);
 
-                starGroup.userData = { baseRadius: baseRadius };
                 scene.add(starGroup);
                 stars.push(starGroup);
 
-                // Trajectory line
-                const lineGeometry = new THREE.BufferGeometry();
-                lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(1500), 3));
-
-                const lineMaterial = new THREE.LineBasicMaterial({
+                // Enhanced trajectory line
+                const trajectoryGeometry = new THREE.BufferGeometry();
+                const trajectoryMaterial = new THREE.LineBasicMaterial({ 
                     color: starColors[i],
                     transparent: true,
-                    opacity: 0.6,
-                    linewidth: 2
+                    opacity: 0.7,
+                    linewidth: 3
                 });
-
-                const trajectoryLine = new THREE.Line(lineGeometry, lineMaterial);
+                const trajectoryLine = new THREE.Line(trajectoryGeometry, trajectoryMaterial);
                 scene.add(trajectoryLine);
                 trajectoryLines.push(trajectoryLine);
             }
@@ -616,6 +613,7 @@
                 targetCameraRotationY += deltaX * MOUSE_SENSITIVITY;
                 targetCameraRotationX += deltaY * MOUSE_SENSITIVITY;
 
+                // Limit vertical rotation
                 targetCameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, targetCameraRotationX));
 
                 mouseX = e.clientX;
@@ -640,35 +638,51 @@
         }
 
         function updateCameraPosition() {
+            // Smooth camera rotation transitions
             cameraRotationX += (targetCameraRotationX - cameraRotationX) * CAMERA_SMOOTHING;
             cameraRotationY += (targetCameraRotationY - cameraRotationY) * CAMERA_SMOOTHING;
+            
+            // Smooth distance transitions
             cameraDistance += (targetCameraDistance - cameraDistance) * CAMERA_SMOOTHING;
 
             if (autoFocus && stars.length > 0) {
+                // Calculate center of mass
                 const newCenter = new THREE.Vector3(0, 0, 0);
-                stars.forEach(star => {
-                    newCenter.add(star.position);
-                });
-                newCenter.divideScalar(stars.length);
+                let totalMass = 0;
 
+                stars.forEach((star, i) => {
+                    const mass = star.userData.mass || 1;
+                    newCenter.add(new THREE.Vector3().copy(star.position).multiplyScalar(mass));
+                    totalMass += mass;
+                });
+
+                if (totalMass > 0) {
+                    newCenter.divideScalar(totalMass);
+                }
+
+                // Smooth center tracking to prevent jumps
                 targetSystemCenter.copy(newCenter);
                 systemCenter.lerp(targetSystemCenter, CENTER_SMOOTHING);
 
+                // Calculate system size (maximum distance from center)
                 systemSize = 0;
                 stars.forEach(star => {
                     const distance = star.position.distanceTo(systemCenter);
                     systemSize = Math.max(systemSize, distance);
                 });
 
+                // Set camera distance based on system size with bounds
                 const minDistance = 3;
                 const maxDistance = 15;
                 const autoTargetDistance = Math.max(minDistance, Math.min(maxDistance, systemSize * 4 + 2));
-
+                
+                // Only adjust target distance if auto-focus is controlling it
                 if (!mouseDown) {
-                    targetCameraDistance += (autoTargetDistance - targetCameraDistance) * 0.02;
+                    targetCameraDistance += (autoTargetDistance - targetCameraDistance) * 0.02; // Very slow auto-adjustment
                 }
             }
 
+            // Position camera with smooth movements
             const radius = cameraDistance;
             const newPosition = new THREE.Vector3(
                 systemCenter.x + radius * Math.sin(cameraRotationY) * Math.cos(cameraRotationX),
@@ -676,21 +690,64 @@
                 systemCenter.z + radius * Math.cos(cameraRotationY) * Math.cos(cameraRotationX)
             );
 
+            // Smooth camera position transitions
             camera.position.lerp(newPosition, CAMERA_SMOOTHING);
             camera.lookAt(systemCenter);
+        }
+
+        function calculateSystemBounds(positions) {
+            if (!positions || positions.length === 0) return;
+
+            let minX = Infinity, maxX = -Infinity;
+            let minY = Infinity, maxY = -Infinity;
+            let minZ = Infinity, maxZ = -Infinity;
+
+            positions.forEach(pos => {
+                if (pos) {
+                    minX = Math.min(minX, pos[0]);
+                    maxX = Math.max(maxX, pos[0]);
+                    minY = Math.min(minY, pos[1]);
+                    maxY = Math.max(maxY, pos[1]);
+                    minZ = Math.min(minZ, pos[2]);
+                    maxZ = Math.max(maxZ, pos[2]);
+                }
+            });
+
+            // Calculate center of the system - this will be handled in updateCameraPosition
+            const newCenter = new THREE.Vector3(
+                (minX + maxX) / 2,
+                (minY + maxY) / 2,
+                (minZ + maxZ) / 2
+            );
+
+            // Calculate system size
+            const sizeX = maxX - minX;
+            const sizeY = maxY - minY;
+            const sizeZ = maxZ - minZ;
+            systemSize = Math.max(sizeX, sizeY, sizeZ);
+
+            // Set target for smooth tracking (handled in updateCameraPosition)
+            if (autoFocus && !mouseDown) {
+                targetSystemCenter.copy(newCenter);
+            }
         }
 
         function updateVisualization(data) {
             if (!data.positions) return;
 
+            // Calculate system bounds for auto-focus
+            calculateSystemBounds(data.positions);
+
+            // Update target star positions for smooth interpolation
             for (let i = 0; i < 3; i++) {
-                if (data.positions[i] && stars[i]) {
+                if (data.positions[i]) {
                     targetStarPositions[i].set(
                         data.positions[i][0],
                         data.positions[i][1],
                         data.positions[i][2]
                     );
 
+                    // Store velocities for prediction
                     if (data.velocities && data.velocities[i]) {
                         starVelocities[i].set(
                             data.velocities[i][0],
@@ -700,17 +757,19 @@
                     }
                 }
 
-                // Update trajectory lines
-                if (data.trajectories[i] && data.trajectories[i].length > 1 && trajectoryLines[i]) {
-                    const positions = new Float32Array(data.trajectories[i].length * 3);
-                    for (let j = 0; j < data.trajectories[i].length; j++) {
-                        positions[j * 3] = data.trajectories[i][j][0];
-                        positions[j * 3 + 1] = data.trajectories[i][j][1];
-                        positions[j * 3 + 2] = data.trajectories[i][j][2];
-                    }
+                // Update trajectories with enhanced visual effects
+                if (data.trajectories[i] && data.trajectories[i].length > 1) {
+                    const points = data.trajectories[i].map(pos => 
+                        new THREE.Vector3(pos[0], pos[1], pos[2])
+                    );
+                    trajectoryLines[i].geometry.setFromPoints(points);
 
-                    trajectoryLines[i].geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-                    trajectoryLines[i].geometry.setDrawRange(0, data.trajectories[i].length);
+                    // Enhanced trajectory fading
+                    const maxPoints = data.trajectories[i].length;
+                    if (maxPoints > 10) {
+                        const fadeStart = Math.max(0, maxPoints - 150);
+                        trajectoryLines[i].material.opacity = Math.max(0.2, 0.8 * (maxPoints - fadeStart) / 150);
+                    }
                 }
             }
 
@@ -718,13 +777,23 @@
         }
 
         function interpolateStarPositions() {
+            const currentTime = Date.now();
+            const deltaTime = (currentTime - lastUpdateTime) / 1000; // Convert to seconds
+
             for (let i = 0; i < 3; i++) {
                 if (stars[i]) {
+                    // Smooth interpolation towards target position
                     starPositions[i].lerp(targetStarPositions[i], STAR_INTERPOLATION);
-                    stars[i].position.copy(starPositions[i]);
+                    
+                    // Add slight prediction based on velocity for ultra-smooth motion
+                    const prediction = starVelocities[i].clone().multiplyScalar(deltaTime * 0.1);
+                    const finalPosition = starPositions[i].clone().add(prediction);
+                    
+                    stars[i].position.copy(finalPosition);
 
+                    // Enhanced velocity-based scaling with smoother transitions
                     const velocity = starVelocities[i].length();
-                    const targetScale = 1 + velocity * 0.05;
+                    const targetScale = 1 + velocity * 0.08;
                     const currentScale = stars[i].children[0].scale.x;
                     const newScale = currentScale + (targetScale - currentScale) * 0.1;
                     stars[i].children[0].scale.setScalar(newScale);
@@ -735,24 +804,54 @@
         function animate() {
             animationId = requestAnimationFrame(animate);
 
-            try {
-                interpolateStarPositions();
-                updateCameraPosition();
-                renderer.render(scene, camera);
-            } catch (error) {
-                console.error('Animation error:', error);
-            }
+            // Interpolate star positions for ultra-smooth motion
+            interpolateStarPositions();
+
+            // Update camera position with smooth transitions every frame
+            updateCameraPosition();
+
+            // Enhanced star effects with smoother animations
+            stars.forEach((star, i) => {
+                if (star.children.length > 1) {
+                    const time = Date.now() * 0.001;
+                    
+                    // Smoother rotation of glow effects
+                    const rotationSpeed = 0.005 + i * 0.001;
+                    star.children[1].rotation.x += rotationSpeed;
+                    star.children[1].rotation.y += rotationSpeed * 1.5;
+
+                    if (star.children[2]) { // Outer glow
+                        star.children[2].rotation.x -= rotationSpeed * 0.7;
+                        star.children[2].rotation.y -= rotationSpeed * 1.2;
+                    }
+
+                    // More subtle and professional pulsing effect
+                    const pulse = 1 + 0.03 * Math.sin(time * 0.8 + i * 2.1);
+                    if (star.children[1]) {
+                        const currentScale = star.children[1].scale.x;
+                        const newScale = currentScale + (pulse - currentScale) * 0.05;
+                        star.children[1].scale.setScalar(newScale);
+                    }
+                    if (star.children[2]) {
+                        const currentScale = star.children[2].scale.x;
+                        const newScale = currentScale + (pulse * 0.85 - currentScale) * 0.05;
+                        star.children[2].scale.setScalar(newScale);
+                    }
+                }
+            });
+
+            renderer.render(scene, camera);
         }
 
-        // API functions
+        // API functions with enhanced error handling
         let connectionErrors = 0;
         let lastSuccessfulFetch = Date.now();
-
+        
         async function fetchState() {
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+                
                 const response = await fetch('/api/state', {
                     signal: controller.signal,
                     headers: {
@@ -760,24 +859,28 @@
                         'Pragma': 'no-cache'
                     }
                 });
-
+                
                 clearTimeout(timeoutId);
-
+                
+                // Check if response is ok
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-
+                
+                // Check if response is JSON
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
                     throw new Error('Response is not JSON');
                 }
-
+                
                 const data = await response.json();
                 updateVisualization(data);
-
+                
+                // Reset error counter on success
                 connectionErrors = 0;
                 lastSuccessfulFetch = Date.now();
 
+                // Update status
                 const statusEl = document.getElementById('status');
                 if (data.running) {
                     statusEl.textContent = `Simulation Running (t=${data.time.toFixed(2)})`;
@@ -788,13 +891,15 @@
                 }
             } catch (error) {
                 connectionErrors++;
-
+                
+                // Only log every 10th error to reduce console spam
                 if (connectionErrors % 10 === 1) {
                     console.warn('Connection issue:', error.message);
                 }
-
+                
+                // Update status only if we haven't had a successful fetch recently
                 const timeSinceLastSuccess = Date.now() - lastSuccessfulFetch;
-                if (timeSinceLastSuccess > 2000) {
+                if (timeSinceLastSuccess > 2000) { // 2 seconds
                     const statusEl = document.getElementById('status');
                     statusEl.textContent = 'Connection Issues - Retrying...';
                     statusEl.className = 'status stopped';
@@ -826,18 +931,23 @@
 
         async function resetSimulation() {
             try {
+                // Stop any running simulation first
                 await fetch('/api/stop', { method: 'POST' });
-
+                
+                // Clear trajectory lines immediately
                 trajectoryLines.forEach(line => {
-                    line.geometry.setDrawRange(0, 0);
+                    line.geometry.setFromPoints([]);
                 });
-
+                
+                // Reset the simulation
                 const response = await fetch('/api/reset', { method: 'POST' });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-
+                
+                // Force update to get the reset state
                 await fetchState();
+                
                 loadDefaultValues();
             } catch (error) {
                 console.error('Error resetting simulation:', error);
@@ -861,7 +971,8 @@
                 [parseFloat(document.getElementById('vel1x').value), 
                  parseFloat(document.getElementById('vel1y').value), 
                  parseFloat(document.getElementById('vel1z').value)],
-                [parseFloat(document.getElementById('vel2x').value),                  parseFloat(document.getElementById('vel2y').value), 
+                [parseFloat(document.getElementById('vel2x').value), 
+                 parseFloat(document.getElementById('vel2y').value), 
                  parseFloat(document.getElementById('vel2z').value)],
                 [parseFloat(document.getElementById('vel3x').value), 
                  parseFloat(document.getElementById('vel3y').value), 
@@ -869,8 +980,7 @@
             ];
 
             const masses = [
-                parseFloat(document.getElementById('mass1').value),
-                parseFloat(document.getElementById('mass2').value),
+                parseFloat(document.getElementById('mass1').value),                parseFloat(document.getElementById('mass2').value),
                 parseFloat(document.getElementById('mass3').value)
             ];
 
@@ -880,15 +990,16 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ positions, velocities, masses })
                 });
-
+                
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-
+                
+                // Clear trajectory lines after setting new initial conditions
                 trajectoryLines.forEach(line => {
-                    line.geometry.setDrawRange(0, 0);
+                    line.geometry.setFromPoints([]);
                 });
-
+                
             } catch (error) {
                 console.error('Error setting initial conditions:', error);
             }
@@ -896,6 +1007,7 @@
 
         // Preset configurations
         function loadDefaultValues() {
+            // Load 3D configuration
             document.getElementById('pos1x').value = 1.0;
             document.getElementById('pos1y').value = 0.0;
             document.getElementById('pos1z').value = 0.5;
@@ -923,6 +1035,7 @@
         }
 
         function loadFigure8() {
+            // 3D spiral figure-8 solution
             document.getElementById('pos1x').value = -0.97;
             document.getElementById('pos1y').value = 0.24;
             document.getElementById('pos1z').value = 0.3;
@@ -948,6 +1061,7 @@
         }
 
         function loadStable() {
+            // 3D stable helix orbit
             document.getElementById('pos1x').value = 1.2;
             document.getElementById('pos1y').value = 0;
             document.getElementById('pos1z').value = 0.8;
@@ -973,6 +1087,7 @@
         }
 
         function loadChaotic() {
+            // 3D chaotic configuration
             document.getElementById('pos1x').value = 2.1;
             document.getElementById('pos1y').value = 0.5;
             document.getElementById('pos1z').value = 1.2;
@@ -998,6 +1113,7 @@
         }
 
         function loadBinary() {
+            // Binary system with third body
             document.getElementById('pos1x').value = 1;
             document.getElementById('pos1y').value = 0;
             document.getElementById('pos1z').value = 0;
@@ -1019,16 +1135,18 @@
             document.getElementById('vel3y').value = 0;
             document.getElementById('vel3z').value = 0;
 
-            document.getElementById('mass3').value = 0.1;
+            document.getElementById('mass3').value = 0.1;  // Lighter third body
             applyCustomSettings();
         }
 
         function toggleAutoFocus() {
             autoFocus = document.getElementById('autoFocusToggle').checked;
             if (!autoFocus) {
+                // Reset to center view when disabling auto-focus
                 targetSystemCenter.set(0, 0, 0);
                 systemCenter.set(0, 0, 0);
             } else {
+                // Initialize target rotation values when enabling auto-focus
                 targetCameraRotationX = cameraRotationX;
                 targetCameraRotationY = cameraRotationY;
                 targetCameraDistance = cameraDistance;
@@ -1039,6 +1157,7 @@
             document.getElementById("configDropdown").classList.toggle("show");
         }
 
+        // Close the dropdown if the user clicks outside of it
         window.onclick = function(event) {
             if (!event.target.matches('.dropdown-button')) {
                 var dropdowns = document.getElementsByClassName("dropdown-content");
@@ -1053,28 +1172,20 @@
 
         // Initialize everything
         window.addEventListener('load', () => {
-            try {
-                if (typeof THREE !== 'undefined') {
-                    initThreeJS();
-                    loadDefaultValues();
-
-                    for (let i = 0; i < 3; i++) {
-                        starPositions[i].set(0, 0, 0);
-                        targetStarPositions[i].set(0, 0, 0);
-                        starVelocities[i].set(0, 0, 0);
-                    }
-
-                    lastUpdateTime = Date.now();
-                    setInterval(fetchState, 33);
-                } else {
-                    throw new Error('Three.js failed to load');
-                }
-            } catch (error) {
-                console.error('Failed to initialize:', error);
-                document.getElementById('errorMessage').textContent = 'Failed to initialize 3D graphics: ' + error.message;
-                document.getElementById('errorMessage').style.display = 'block';
-                document.getElementById('loadingMessage').style.display = 'none';
+            initThreeJS();
+            loadDefaultValues();
+            
+            // Initialize star positions to prevent initial jumps
+            for (let i = 0; i < 3; i++) {
+                starPositions[i].set(0, 0, 0);
+                targetStarPositions[i].set(0, 0, 0);
+                starVelocities[i].set(0, 0, 0);
             }
+            
+            lastUpdateTime = Date.now();
+
+            // Update visualization every 33ms (30 FPS) for smooth professional animation
+            setInterval(fetchState, 33);
         });
     </script>
 </body>
