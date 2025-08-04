@@ -104,14 +104,20 @@ class ThreeBodySimulation:
         if not self.running:
             return
         
-        # Prepare initial conditions for ODE solver
-        y0 = np.concatenate([self.positions.flatten(), self.velocities.flatten()])
-        
-        # Time span for this step
-        t_span = (self.time, self.time + self.dt)
-        t_eval = [self.time + self.dt]
-        
         try:
+            # Check for invalid positions/velocities
+            if not np.all(np.isfinite(self.positions)) or not np.all(np.isfinite(self.velocities)):
+                print("Invalid positions or velocities detected, resetting simulation")
+                self.reset_to_default()
+                return
+            
+            # Prepare initial conditions for ODE solver
+            y0 = np.concatenate([self.positions.flatten(), self.velocities.flatten()])
+            
+            # Time span for this step
+            t_span = (self.time, self.time + self.dt)
+            t_eval = [self.time + self.dt]
+            
             # Solve ODE using high-precision method
             sol = solve_ivp(
                 self.three_body_ode, 
@@ -127,18 +133,27 @@ class ThreeBodySimulation:
             if sol.success and len(sol.y) > 0:
                 # Extract new positions and velocities
                 y_new = sol.y[:, -1]
-                self.positions = y_new[:9].reshape(3, 3)
-                self.velocities = y_new[9:].reshape(3, 3)
+                new_positions = y_new[:9].reshape(3, 3)
+                new_velocities = y_new[9:].reshape(3, 3)
                 
-                # Store trajectories
-                for i in range(3):
-                    if len(self.trajectories[i]) >= self.trajectory_length:
-                        self.trajectories[i].pop(0)
-                    self.trajectories[i].append(self.positions[i].tolist())
-                
-                self.time += self.dt
+                # Check for numerical instability
+                if np.all(np.isfinite(new_positions)) and np.all(np.isfinite(new_velocities)):
+                    self.positions = new_positions
+                    self.velocities = new_velocities
+                    
+                    # Store trajectories
+                    for i in range(3):
+                        if len(self.trajectories[i]) >= self.trajectory_length:
+                            self.trajectories[i].pop(0)
+                        self.trajectories[i].append(self.positions[i].tolist())
+                    
+                    self.time += self.dt
+                else:
+                    print("Numerical instability detected, using fallback method")
+                    self.simple_step()
             else:
-                print(f"ODE solver failed: {sol.message}")
+                print(f"ODE solver failed: {sol.message if hasattr(sol, 'message') else 'Unknown error'}")
+                self.simple_step()
                 
         except Exception as e:
             print(f"Integration error: {e}")
@@ -207,36 +222,71 @@ def index():
 
 @app.route('/api/state')
 def get_state():
-    return jsonify(simulation.get_state())
+    try:
+        state = simulation.get_state()
+        response = jsonify(state)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    except Exception as e:
+        print(f"Error getting state: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/start', methods=['POST'])
 def start_simulation():
-    simulation.running = True
-    return jsonify({'status': 'started'})
+    try:
+        simulation.running = True
+        response = jsonify({'status': 'started'})
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    except Exception as e:
+        print(f"Error starting simulation: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/stop', methods=['POST'])
 def stop_simulation():
-    simulation.running = False
-    return jsonify({'status': 'stopped'})
+    try:
+        simulation.running = False
+        response = jsonify({'status': 'stopped'})
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    except Exception as e:
+        print(f"Error stopping simulation: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/reset', methods=['POST'])
 def reset_simulation():
-    simulation.running = False
-    simulation.reset_to_default()
-    return jsonify({'status': 'reset'})
+    try:
+        simulation.running = False
+        simulation.reset_to_default()
+        response = jsonify({'status': 'reset'})
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    except Exception as e:
+        print(f"Error resetting simulation: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/set_initial', methods=['POST'])
 def set_initial_conditions():
-    data = request.json
     try:
-        positions = data['positions']
-        velocities = data['velocities']
-        masses = data['masses']
+        data = request.json
+        if not data:
+            return jsonify({'status': 'error', 'message': 'No data provided'}), 400
+            
+        positions = data.get('positions')
+        velocities = data.get('velocities')
+        masses = data.get('masses')
+        
+        if not all([positions, velocities, masses]):
+            return jsonify({'status': 'error', 'message': 'Missing required data'}), 400
         
         simulation.running = False
         simulation.set_initial_conditions(positions, velocities, masses)
-        return jsonify({'status': 'success'})
+        
+        response = jsonify({'status': 'success'})
+        response.headers['Content-Type'] = 'application/json'
+        return response
     except Exception as e:
+        print(f"Error setting initial conditions: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 400
 
 if __name__ == '__main__':
