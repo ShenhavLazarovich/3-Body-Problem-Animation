@@ -831,6 +831,12 @@
 
         async function resetSimulation() {
             await fetch('/api/reset', { method: 'POST' });
+            
+            // Immediately clear trajectory lines
+            trajectoryLines.forEach(line => {
+                line.geometry.setFromPoints([]);
+            });
+            
             loadDefaultValues();
         }
 
@@ -1045,8 +1051,8 @@
             initThreeJS();
             loadDefaultValues();
 
-            // Update visualization every 50ms
-            setInterval(fetchState, 50);
+            // Update visualization every 20ms for more responsive controls
+            setInterval(fetchState, 20);
         });
     </script>
 </body>

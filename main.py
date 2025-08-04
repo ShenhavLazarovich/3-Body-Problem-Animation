@@ -185,7 +185,7 @@ def simulation_loop():
     while True:
         if simulation.running:
             simulation.step()
-        time.sleep(0.005)  # 200 FPS simulation for smooth motion
+        time.sleep(0.001)  # 1000 FPS simulation for smooth motion
 
 # Start simulation thread
 simulation_thread = threading.Thread(target=simulation_loop, daemon=True)
