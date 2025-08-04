@@ -19,10 +19,10 @@ class ThreeBodySimulation:
         self.reset_to_default()
 
         # Simulation parameters
-        self.dt = 0.005  # Time step for output
+        self.dt = 0.01  # Increased time step for smoother motion
         self.time = 0
         self.running = False
-        self.trajectory_length = 2000
+        self.trajectory_length = 1500  # Reduced for better performance
 
         # Store trajectories for visualization
         self.trajectories = [[], [], []]
@@ -222,7 +222,7 @@ def simulation_loop():
     while True:
         if simulation.running:
             simulation.step()
-        time.sleep(0.001)  # 1000 FPS simulation for smooth motion
+        time.sleep(0.016)  # ~60 FPS simulation for optimal performance
 
 
 # Start simulation thread
@@ -241,6 +241,8 @@ def get_state():
         state = simulation.get_state()
         response = jsonify(state)
         response.headers['Content-Type'] = 'application/json'
+        response.headers['Cache-Control'] = 'no-cache'
+        response.headers['Access-Control-Allow-Origin'] = '*'
         return response
     except Exception as e:
         print(f"Error getting state: {e}")
