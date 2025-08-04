@@ -1,0 +1,720 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three Body Problem - Celestial Dance</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(ellipse at center, #0c1445 0%, #000000 100%);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: grab;
+        }
+
+        #canvas:active {
+            cursor: grabbing;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 300px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .controls h2 {
+            margin-bottom: 15px;
+            color: #64b5f6;
+            text-align: center;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #1976d2, #42a5f5);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(25, 118, 210, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .preset-buttons button {
+            background: linear-gradient(45deg, #7b1fa2, #ba68c8);
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #90caf9;
+            font-weight: bold;
+        }
+
+        .body-inputs {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .body-inputs h4 {
+            color: #ffab91;
+            margin-bottom: 10px;
+        }
+
+        .coord-input {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 12px;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #64b5f6;
+            box-shadow: 0 0 10px rgba(100, 181, 246, 0.3);
+        }
+
+        .info {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 12px;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .legend h3 {
+            margin-bottom: 10px;
+            color: #64b5f6;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .star1 { background: #ff6b6b; }
+        .star2 { background: #4ecdc4; }
+        .star3 { background: #ffe66d; }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-size: 24px;
+            color: #64b5f6;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .status.running {
+            background: rgba(76, 175, 80, 0.3);
+            color: #81c784;
+        }
+
+        .status.stopped {
+            background: rgba(244, 67, 54, 0.3);
+            color: #e57373;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="controls">
+        <h2>🌟 Three Body Simulation</h2>
+        
+        <div id="status" class="status stopped">Simulation Stopped</div>
+        
+        <div class="button-group">
+            <button onclick="startSimulation()">▶️ Start</button>
+            <button onclick="stopSimulation()">⏸️ Stop</button>
+            <button onclick="resetSimulation()">🔄 Reset</button>
+        </div>
+
+        <div class="preset-buttons">
+            <button onclick="loadFigure8()">Figure-8</button>
+            <button onclick="loadStable()">Stable Orbit</button>
+            <button onclick="loadChaotic()">Chaotic</button>
+            <button onclick="loadBinary()">Binary+1</button>
+        </div>
+
+        <div class="input-group">
+            <label>Custom Initial Conditions:</label>
+            
+            <div class="body-inputs">
+                <h4>Star 1 (Red)</h4>
+                <label>Position (x, y, z):</label>
+                <div class="coord-input">
+                    <input type="number" id="pos1x" value="-1.94" step="0.01">
+                    <input type="number" id="pos1y" value="0.49" step="0.01">
+                    <input type="number" id="pos1z" value="0" step="0.01">
+                </div>
+                <label>Velocity (vx, vy, vz):</label>
+                <div class="coord-input">
+                    <input type="number" id="vel1x" value="0.23" step="0.01">
+                    <input type="number" id="vel1y" value="0.22" step="0.01">
+                    <input type="number" id="vel1z" value="0" step="0.01">
+                </div>
+                <label>Mass:</label>
+                <input type="number" id="mass1" value="1.0" step="0.1" style="width: 100%;">
+            </div>
+
+            <div class="body-inputs">
+                <h4>Star 2 (Cyan)</h4>
+                <label>Position (x, y, z):</label>
+                <div class="coord-input">
+                    <input type="number" id="pos2x" value="0" step="0.01">
+                    <input type="number" id="pos2y" value="0" step="0.01">
+                    <input type="number" id="pos2z" value="0" step="0.01">
+                </div>
+                <label>Velocity (vx, vy, vz):</label>
+                <div class="coord-input">
+                    <input type="number" id="vel2x" value="-0.46" step="0.01">
+                    <input type="number" id="vel2y" value="-0.43" step="0.01">
+                    <input type="number" id="vel2z" value="0" step="0.01">
+                </div>
+                <label>Mass:</label>
+                <input type="number" id="mass2" value="1.0" step="0.1" style="width: 100%;">
+            </div>
+
+            <div class="body-inputs">
+                <h4>Star 3 (Yellow)</h4>
+                <label>Position (x, y, z):</label>
+                <div class="coord-input">
+                    <input type="number" id="pos3x" value="1.94" step="0.01">
+                    <input type="number" id="pos3y" value="-0.49" step="0.01">
+                    <input type="number" id="pos3z" value="0" step="0.01">
+                </div>
+                <label>Velocity (vx, vy, vz):</label>
+                <div class="coord-input">
+                    <input type="number" id="vel3x" value="0.23" step="0.01">
+                    <input type="number" id="vel3y" value="0.22" step="0.01">
+                    <input type="number" id="vel3z" value="0" step="0.01">
+                </div>
+                <label>Mass:</label>
+                <input type="number" id="mass3" value="1.0" step="0.1" style="width: 100%;">
+            </div>
+
+            <button onclick="applyCustomSettings()">Apply Settings</button>
+        </div>
+
+        <div class="info">
+            <strong>Instructions:</strong><br>
+            • Use mouse to rotate the view<br>
+            • Scroll to zoom in/out<br>
+            • Adjust initial conditions above<br>
+            • Watch the gravitational dance unfold!
+        </div>
+    </div>
+
+    <div class="legend">
+        <h3>Stars</h3>
+        <div class="legend-item">
+            <div class="legend-color star1"></div>
+            <span>Star 1</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color star2"></div>
+            <span>Star 2</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color star3"></div>
+            <span>Star 3</span>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Three.js scene setup
+        let scene, camera, renderer, controls;
+        let stars = [];
+        let trajectoryLines = [];
+        let animationId;
+        
+        // Colors for the three bodies
+        const starColors = [0xff6b6b, 0x4ecdc4, 0xffe66d];
+        
+        // Camera controls
+        let mouseDown = false;
+        let mouseX = 0, mouseY = 0;
+        let cameraRotationX = 0, cameraRotationY = 0;
+        let cameraDistance = 10;
+
+        function initThreeJS() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000011);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('canvas'),
+                antialias: true 
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            // Add starfield background
+            createStarField();
+
+            // Create stars
+            createStars();
+
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+            scene.add(ambientLight);
+
+            // Controls
+            setupControls();
+
+            // Start render loop
+            animate();
+        }
+
+        function createStarField() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starCount = 10000;
+            const starPositions = new Float32Array(starCount * 3);
+
+            for (let i = 0; i < starCount * 3; i++) {
+                starPositions[i] = (Math.random() - 0.5) * 2000;
+            }
+
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMaterial = new THREE.PointsMaterial({ 
+                color: 0xffffff, 
+                size: 0.5,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            const starField = new THREE.Points(starGeometry, starMaterial);
+            scene.add(starField);
+        }
+
+        function createStars() {
+            for (let i = 0; i < 3; i++) {
+                // Star geometry with glow effect
+                const starGroup = new THREE.Group();
+                
+                // Main star body
+                const starGeometry = new THREE.SphereGeometry(0.1, 32, 32);
+                const starMaterial = new THREE.MeshPhongMaterial({ 
+                    color: starColors[i],
+                    emissive: starColors[i],
+                    emissiveIntensity: 0.3,
+                    shininess: 100
+                });
+                const star = new THREE.Mesh(starGeometry, starMaterial);
+                
+                // Glow effect
+                const glowGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: starColors[i],
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                
+                // Point light for each star
+                const light = new THREE.PointLight(starColors[i], 1, 50);
+                light.castShadow = true;
+                
+                starGroup.add(star);
+                starGroup.add(glow);
+                starGroup.add(light);
+                
+                scene.add(starGroup);
+                stars.push(starGroup);
+
+                // Create trajectory line
+                const trajectoryGeometry = new THREE.BufferGeometry();
+                const trajectoryMaterial = new THREE.LineBasicMaterial({ 
+                    color: starColors[i],
+                    transparent: true,
+                    opacity: 0.6,
+                    linewidth: 2
+                });
+                const trajectoryLine = new THREE.Line(trajectoryGeometry, trajectoryMaterial);
+                scene.add(trajectoryLine);
+                trajectoryLines.push(trajectoryLine);
+            }
+        }
+
+        function setupControls() {
+            const canvas = document.getElementById('canvas');
+            
+            canvas.addEventListener('mousedown', (e) => {
+                mouseDown = true;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (!mouseDown) return;
+                
+                const deltaX = e.clientX - mouseX;
+                const deltaY = e.clientY - mouseY;
+                
+                cameraRotationY += deltaX * 0.01;
+                cameraRotationX += deltaY * 0.01;
+                
+                // Limit vertical rotation
+                cameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraRotationX));
+                
+                updateCameraPosition();
+                
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                mouseDown = false;
+            });
+
+            canvas.addEventListener('wheel', (e) => {
+                cameraDistance += e.deltaY * 0.01;
+                cameraDistance = Math.max(2, Math.min(50, cameraDistance));
+                updateCameraPosition();
+            });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function updateCameraPosition() {
+            camera.position.x = cameraDistance * Math.sin(cameraRotationY) * Math.cos(cameraRotationX);
+            camera.position.y = cameraDistance * Math.sin(cameraRotationX);
+            camera.position.z = cameraDistance * Math.cos(cameraRotationY) * Math.cos(cameraRotationX);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function updateVisualization(data) {
+            if (!data.positions) return;
+
+            // Update star positions
+            for (let i = 0; i < 3; i++) {
+                if (stars[i] && data.positions[i]) {
+                    stars[i].position.set(
+                        data.positions[i][0],
+                        data.positions[i][1],
+                        data.positions[i][2]
+                    );
+                }
+
+                // Update trajectories
+                if (data.trajectories[i] && data.trajectories[i].length > 1) {
+                    const points = data.trajectories[i].map(pos => 
+                        new THREE.Vector3(pos[0], pos[1], pos[2])
+                    );
+                    trajectoryLines[i].geometry.setFromPoints(points);
+                }
+            }
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+            
+            // Gentle rotation of star glow
+            stars.forEach((star, i) => {
+                if (star.children[1]) { // Glow effect
+                    star.children[1].rotation.x += 0.01;
+                    star.children[1].rotation.y += 0.01;
+                }
+            });
+            
+            renderer.render(scene, camera);
+        }
+
+        // API functions
+        async function fetchState() {
+            try {
+                const response = await fetch('/api/state');
+                const data = await response.json();
+                updateVisualization(data);
+                
+                // Update status
+                const statusEl = document.getElementById('status');
+                if (data.running) {
+                    statusEl.textContent = `Simulation Running (t=${data.time.toFixed(2)})`;
+                    statusEl.className = 'status running';
+                } else {
+                    statusEl.textContent = 'Simulation Stopped';
+                    statusEl.className = 'status stopped';
+                }
+            } catch (error) {
+                console.error('Error fetching state:', error);
+            }
+        }
+
+        async function startSimulation() {
+            await fetch('/api/start', { method: 'POST' });
+        }
+
+        async function stopSimulation() {
+            await fetch('/api/stop', { method: 'POST' });
+        }
+
+        async function resetSimulation() {
+            await fetch('/api/reset', { method: 'POST' });
+            loadDefaultValues();
+        }
+
+        async function applyCustomSettings() {
+            const positions = [
+                [parseFloat(document.getElementById('pos1x').value), 
+                 parseFloat(document.getElementById('pos1y').value), 
+                 parseFloat(document.getElementById('pos1z').value)],
+                [parseFloat(document.getElementById('pos2x').value), 
+                 parseFloat(document.getElementById('pos2y').value), 
+                 parseFloat(document.getElementById('pos2z').value)],
+                [parseFloat(document.getElementById('pos3x').value), 
+                 parseFloat(document.getElementById('pos3y').value), 
+                 parseFloat(document.getElementById('pos3z').value)]
+            ];
+
+            const velocities = [
+                [parseFloat(document.getElementById('vel1x').value), 
+                 parseFloat(document.getElementById('vel1y').value), 
+                 parseFloat(document.getElementById('vel1z').value)],
+                [parseFloat(document.getElementById('vel2x').value), 
+                 parseFloat(document.getElementById('vel2y').value), 
+                 parseFloat(document.getElementById('vel2z').value)],
+                [parseFloat(document.getElementById('vel3x').value), 
+                 parseFloat(document.getElementById('vel3y').value), 
+                 parseFloat(document.getElementById('vel3z').value)]
+            ];
+
+            const masses = [
+                parseFloat(document.getElementById('mass1').value),
+                parseFloat(document.getElementById('mass2').value),
+                parseFloat(document.getElementById('mass3').value)
+            ];
+
+            try {
+                await fetch('/api/set_initial', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ positions, velocities, masses })
+                });
+            } catch (error) {
+                console.error('Error setting initial conditions:', error);
+            }
+        }
+
+        // Preset configurations
+        function loadDefaultValues() {
+            // Figure-8 configuration
+            document.getElementById('pos1x').value = -1.94;
+            document.getElementById('pos1y').value = 0.49;
+            document.getElementById('pos1z').value = 0;
+            document.getElementById('vel1x').value = 0.23;
+            document.getElementById('vel1y').value = 0.22;
+            document.getElementById('vel1z').value = 0;
+            document.getElementById('mass1').value = 1.0;
+
+            document.getElementById('pos2x').value = 0;
+            document.getElementById('pos2y').value = 0;
+            document.getElementById('pos2z').value = 0;
+            document.getElementById('vel2x').value = -0.46;
+            document.getElementById('vel2y').value = -0.43;
+            document.getElementById('vel2z').value = 0;
+            document.getElementById('mass2').value = 1.0;
+
+            document.getElementById('pos3x').value = 1.94;
+            document.getElementById('pos3y').value = -0.49;
+            document.getElementById('pos3z').value = 0;
+            document.getElementById('vel3x').value = 0.23;
+            document.getElementById('vel3y').value = 0.22;
+            document.getElementById('vel3z').value = 0;
+            document.getElementById('mass3').value = 1.0;
+        }
+
+        function loadFigure8() {
+            loadDefaultValues();
+            applyCustomSettings();
+        }
+
+        function loadStable() {
+            // Stable triangular orbit
+            document.getElementById('pos1x').value = 1;
+            document.getElementById('pos1y').value = 0;
+            document.getElementById('pos1z').value = 0;
+            document.getElementById('vel1x').value = 0;
+            document.getElementById('vel1y').value = 0.5;
+            document.getElementById('vel1z').value = 0;
+
+            document.getElementById('pos2x').value = -0.5;
+            document.getElementById('pos2y').value = 0.866;
+            document.getElementById('pos2z').value = 0;
+            document.getElementById('vel2x').value = -0.433;
+            document.getElementById('vel2y').value = -0.25;
+            document.getElementById('vel2z').value = 0;
+
+            document.getElementById('pos3x').value = -0.5;
+            document.getElementById('pos3y').value = -0.866;
+            document.getElementById('pos3z').value = 0;
+            document.getElementById('vel3x').value = 0.433;
+            document.getElementById('vel3y').value = -0.25;
+            document.getElementById('vel3z').value = 0;
+
+            applyCustomSettings();
+        }
+
+        function loadChaotic() {
+            // Chaotic configuration
+            document.getElementById('pos1x').value = 1.5;
+            document.getElementById('pos1y').value = 0.2;
+            document.getElementById('pos1z').value = 0;
+            document.getElementById('vel1x').value = 0.1;
+            document.getElementById('vel1y').value = 0.3;
+            document.getElementById('vel1z').value = 0;
+
+            document.getElementById('pos2x').value = -1.2;
+            document.getElementById('pos2y').value = 0.8;
+            document.getElementById('pos2z').value = 0;
+            document.getElementById('vel2x').value = -0.2;
+            document.getElementById('vel2y').value = -0.4;
+            document.getElementById('vel2z').value = 0;
+
+            document.getElementById('pos3x').value = 0.3;
+            document.getElementById('pos3y').value = -1.5;
+            document.getElementById('pos3z').value = 0;
+            document.getElementById('vel3x').value = 0.4;
+            document.getElementById('vel3y').value = 0.1;
+            document.getElementById('vel3z').value = 0;
+
+            applyCustomSettings();
+        }
+
+        function loadBinary() {
+            // Binary system with third body
+            document.getElementById('pos1x').value = 1;
+            document.getElementById('pos1y').value = 0;
+            document.getElementById('pos1z').value = 0;
+            document.getElementById('vel1x').value = 0;
+            document.getElementById('vel1y').value = 0.7;
+            document.getElementById('vel1z').value = 0;
+
+            document.getElementById('pos2x').value = -1;
+            document.getElementById('pos2y').value = 0;
+            document.getElementById('pos2z').value = 0;
+            document.getElementById('vel2x').value = 0;
+            document.getElementById('vel2y').value = -0.7;
+            document.getElementById('vel2z').value = 0;
+
+            document.getElementById('pos3x').value = 0;
+            document.getElementById('pos3y').value = 3;
+            document.getElementById('pos3z').value = 0;
+            document.getElementById('vel3x').value = 0.5;
+            document.getElementById('vel3y').value = 0;
+            document.getElementById('vel3z').value = 0;
+
+            document.getElementById('mass3').value = 0.1;  // Lighter third body
+            applyCustomSettings();
+        }
+
+        // Initialize everything
+        window.addEventListener('load', () => {
+            initThreeJS();
+            loadDefaultValues();
+            
+            // Update visualization every 50ms
+            setInterval(fetchState, 50);
+        });
+    </script>
+</body>
+</html>
