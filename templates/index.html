@@ -281,14 +281,14 @@
                         <h4>Star 1 (Red)</h4>
                         <label>Position (x, y, z):</label>
                         <div class="coord-input">
-                            <input type="number" id="pos1x" value="-1.94" step="0.01">
-                            <input type="number" id="pos1y" value="0.49" step="0.01">
+                            <input type="number" id="pos1x" value="2.0" step="0.01">
+                            <input type="number" id="pos1y" value="0.0" step="0.01">
                             <input type="number" id="pos1z" value="0" step="0.01">
                         </div>
                         <label>Velocity (vx, vy, vz):</label>
                         <div class="coord-input">
-                            <input type="number" id="vel1x" value="0.23" step="0.01">
-                            <input type="number" id="vel1y" value="0.22" step="0.01">
+                            <input type="number" id="vel1x" value="0.0" step="0.01">
+                            <input type="number" id="vel1y" value="0.0" step="0.01">
                             <input type="number" id="vel1z" value="0" step="0.01">
                         </div>
                         <label>Mass:</label>
@@ -299,14 +299,14 @@
                         <h4>Star 2 (Cyan)</h4>
                         <label>Position (x, y, z):</label>
                         <div class="coord-input">
-                            <input type="number" id="pos2x" value="0" step="0.01">
-                            <input type="number" id="pos2y" value="0" step="0.01">
+                            <input type="number" id="pos2x" value="-1.0" step="0.01">
+                            <input type="number" id="pos2y" value="1.732" step="0.01">
                             <input type="number" id="pos2z" value="0" step="0.01">
                         </div>
                         <label>Velocity (vx, vy, vz):</label>
                         <div class="coord-input">
-                            <input type="number" id="vel2x" value="-0.46" step="0.01">
-                            <input type="number" id="vel2y" value="-0.43" step="0.01">
+                            <input type="number" id="vel2x" value="0.0" step="0.01">
+                            <input type="number" id="vel2y" value="0.0" step="0.01">
                             <input type="number" id="vel2z" value="0" step="0.01">
                         </div>
                         <label>Mass:</label>
@@ -317,14 +317,14 @@
                         <h4>Star 3 (Yellow)</h4>
                         <label>Position (x, y, z):</label>
                         <div class="coord-input">
-                            <input type="number" id="pos3x" value="1.94" step="0.01">
-                            <input type="number" id="pos3y" value="-0.49" step="0.01">
+                            <input type="number" id="pos3x" value="-1.0" step="0.01">
+                            <input type="number" id="pos3y" value="-1.732" step="0.01">
                             <input type="number" id="pos3z" value="0" step="0.01">
                         </div>
                         <label>Velocity (vx, vy, vz):</label>
                         <div class="coord-input">
-                            <input type="number" id="vel3x" value="0.23" step="0.01">
-                            <input type="number" id="vel3y" value="0.22" step="0.01">
+                            <input type="number" id="vel3x" value="0.0" step="0.01">
+                            <input type="number" id="vel3y" value="0.0" step="0.01">
                             <input type="number" id="vel3z" value="0" step="0.01">
                         </div>
                         <label>Mass:</label>
@@ -668,10 +668,12 @@
             const sizeZ = maxZ - minZ;
             systemSize = Math.max(sizeX, sizeY, sizeZ);
 
-            // Auto-adjust camera distance based on system size
+            // Auto-adjust camera distance based on system size with limits
             if (autoFocus) {
-                const targetDistance = Math.max(systemSize * 2, 5);
-                cameraDistance = cameraDistance * 0.95 + targetDistance * 0.05; // Smooth transition
+                const targetDistance = Math.max(systemSize * 2.5, 8);
+                // Prevent infinite zoom-out by clamping the target distance
+                const clampedTargetDistance = Math.min(targetDistance, 100);
+                cameraDistance = Math.max(5, Math.min(50, cameraDistance * 0.98 + clampedTargetDistance * 0.02)); // Slower, limited transition
             }
         }
 
@@ -828,28 +830,28 @@
 
         // Preset configurations
         function loadDefaultValues() {
-            // Figure-8 configuration
-            document.getElementById('pos1x').value = -1.94;
-            document.getElementById('pos1y').value = 0.49;
+            // Triangular configuration with zero velocities
+            document.getElementById('pos1x').value = 2.0;
+            document.getElementById('pos1y').value = 0.0;
             document.getElementById('pos1z').value = 0;
-            document.getElementById('vel1x').value = 0.23;
-            document.getElementById('vel1y').value = 0.22;
+            document.getElementById('vel1x').value = 0.0;
+            document.getElementById('vel1y').value = 0.0;
             document.getElementById('vel1z').value = 0;
             document.getElementById('mass1').value = 1.0;
 
-            document.getElementById('pos2x').value = 0;
-            document.getElementById('pos2y').value = 0;
-document.getElementById('pos2z').value = 0;
-            document.getElementById('vel2x').value = -0.46;
-            document.getElementById('vel2y').value = -0.43;
+            document.getElementById('pos2x').value = -1.0;
+            document.getElementById('pos2y').value = 1.732;
+            document.getElementById('pos2z').value = 0;
+            document.getElementById('vel2x').value = 0.0;
+            document.getElementById('vel2y').value = 0.0;
             document.getElementById('vel2z').value = 0;
             document.getElementById('mass2').value = 1.0;
 
-            document.getElementById('pos3x').value = 1.94;
-            document.getElementById('pos3y').value = -0.49;
+            document.getElementById('pos3x').value = -1.0;
+            document.getElementById('pos3y').value = -1.732;
             document.getElementById('pos3z').value = 0;
-            document.getElementById('vel3x').value = 0.23;
-            document.getElementById('vel3y').value = 0.22;
+            document.getElementById('vel3x').value = 0.0;
+            document.getElementById('vel3y').value = 0.0;
             document.getElementById('vel3z').value = 0;
             document.getElementById('mass3').value = 1.0;
         }

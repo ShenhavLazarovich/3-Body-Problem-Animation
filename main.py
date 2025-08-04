@@ -26,27 +26,23 @@ class ThreeBodySimulation:
         self.trajectories = [[], [], []]
         
     def reset_to_default(self):
-        """Reset to a stable figure-8 configuration"""
-        # Figure-8 initial conditions (scaled)
-        self.masses = np.array([1.0, 1.0, 1.0])  # Equal masses
+        """Reset to a simple triangular configuration with equal masses and zero velocities"""
+        # Equal masses
+        self.masses = np.array([1.0, 1.0, 1.0])
         
-        # Positions (x, y, z)
+        # Triangular positions (x, y, z)
         self.positions = np.array([
-            [-0.97000436, 0.24308753, 0.0],
-            [0.0, 0.0, 0.0],
-            [0.97000436, -0.24308753, 0.0]
+            [2.0, 0.0, 0.0],
+            [-1.0, 1.732, 0.0],  # sqrt(3) ≈ 1.732 for equilateral triangle
+            [-1.0, -1.732, 0.0]
         ])
         
-        # Velocities
+        # Zero initial velocities
         self.velocities = np.array([
-            [0.4662036850, 0.4323657300, 0.0],
-            [-0.9324073700, -0.8647314600, 0.0],
-            [0.4662036850, 0.4323657300, 0.0]
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0]
         ])
-        
-        # Scale for better visualization
-        self.positions *= 2.0
-        self.velocities *= 0.5
         
         self.time = 0
         self.trajectories = [[], [], []]
