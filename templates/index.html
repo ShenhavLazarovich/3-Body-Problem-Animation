@@ -282,6 +282,14 @@
             </div>
 
             <button onclick="applyCustomSettings()">Apply Settings</button>
+            
+            <div class="input-group">
+                <label>Camera Settings:</label>
+                <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
+                    <input type="checkbox" id="autoFocusToggle" checked onchange="toggleAutoFocus()">
+                    <label for="autoFocusToggle" style="margin: 0;">Auto-focus on system</label>
+                </div>
+            </div>
         </div>
 
         <div class="info">
@@ -325,6 +333,9 @@
         let mouseX = 0, mouseY = 0;
         let cameraRotationX = 0, cameraRotationY = 0;
         let cameraDistance = 10;
+        let autoFocus = true;
+        let systemCenter = new THREE.Vector3(0, 0, 0);
+        let systemSize = 5;
 
         function initThreeJS() {
             // Scene
@@ -362,68 +373,153 @@
         }
 
         function createStarField() {
+            // Dense starfield
             const starGeometry = new THREE.BufferGeometry();
-            const starCount = 10000;
+            const starCount = 15000;
             const starPositions = new Float32Array(starCount * 3);
+            const starColors = new Float32Array(starCount * 3);
+            const starSizes = new Float32Array(starCount);
 
-            for (let i = 0; i < starCount * 3; i++) {
-                starPositions[i] = (Math.random() - 0.5) * 2000;
+            for (let i = 0; i < starCount; i++) {
+                const i3 = i * 3;
+                
+                // Random positions in a large sphere
+                const radius = 500 + Math.random() * 1500;
+                const phi = Math.random() * Math.PI * 2;
+                const theta = Math.random() * Math.PI;
+                
+                starPositions[i3] = radius * Math.sin(theta) * Math.cos(phi);
+                starPositions[i3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
+                starPositions[i3 + 2] = radius * Math.cos(theta);
+                
+                // Star colors - mix of white, blue, yellow, red
+                const colorType = Math.random();
+                if (colorType < 0.6) {
+                    // White/blue stars
+                    starColors[i3] = 0.8 + Math.random() * 0.2;
+                    starColors[i3 + 1] = 0.9 + Math.random() * 0.1;
+                    starColors[i3 + 2] = 1.0;
+                } else if (colorType < 0.8) {
+                    // Yellow stars
+                    starColors[i3] = 1.0;
+                    starColors[i3 + 1] = 0.9 + Math.random() * 0.1;
+                    starColors[i3 + 2] = 0.4 + Math.random() * 0.3;
+                } else {
+                    // Red stars
+                    starColors[i3] = 1.0;
+                    starColors[i3 + 1] = 0.3 + Math.random() * 0.3;
+                    starColors[i3 + 2] = 0.2 + Math.random() * 0.2;
+                }
+                
+                // Variable star sizes
+                starSizes[i] = Math.random() * 2 + 0.5;
             }
 
             starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            starGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+            starGeometry.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+            
             const starMaterial = new THREE.PointsMaterial({ 
-                color: 0xffffff, 
-                size: 0.5,
+                vertexColors: true,
                 transparent: true,
-                opacity: 0.8
+                opacity: 0.9,
+                sizeAttenuation: false
             });
 
             const starField = new THREE.Points(starGeometry, starMaterial);
             scene.add(starField);
+            
+            // Add nebula-like background
+            createNebulaBackground();
+        }
+        
+        function createNebulaBackground() {
+            // Create multiple colored nebula clouds
+            const nebulaColors = [
+                { color: 0x4a0e4e, opacity: 0.1 }, // Purple
+                { color: 0x0e2a4a, opacity: 0.08 }, // Blue
+                { color: 0x4a1e0e, opacity: 0.06 }, // Orange
+                { color: 0x0e4a2a, opacity: 0.05 }  // Green
+            ];
+            
+            nebulaColors.forEach((nebula, index) => {
+                const nebulaGeometry = new THREE.SphereGeometry(800 + index * 100, 32, 32);
+                const nebulaMaterial = new THREE.MeshBasicMaterial({
+                    color: nebula.color,
+                    transparent: true,
+                    opacity: nebula.opacity,
+                    side: THREE.BackSide
+                });
+                
+                const nebulaMesh = new THREE.Mesh(nebulaGeometry, nebulaMaterial);
+                nebulaMesh.position.set(
+                    (Math.random() - 0.5) * 500,
+                    (Math.random() - 0.5) * 500,
+                    (Math.random() - 0.5) * 500
+                );
+                scene.add(nebulaMesh);
+            });
         }
 
         function createStars() {
             for (let i = 0; i < 3; i++) {
-                // Star geometry with glow effect
+                // Star geometry with enhanced effects
                 const starGroup = new THREE.Group();
                 
-                // Main star body
-                const starGeometry = new THREE.SphereGeometry(0.1, 32, 32);
+                // Main star body with variable size based on mass
+                const baseRadius = 0.08 + i * 0.02;
+                const starGeometry = new THREE.SphereGeometry(baseRadius, 32, 32);
                 const starMaterial = new THREE.MeshPhongMaterial({ 
                     color: starColors[i],
                     emissive: starColors[i],
-                    emissiveIntensity: 0.3,
-                    shininess: 100
+                    emissiveIntensity: 0.4,
+                    shininess: 100,
+                    transparent: true,
+                    opacity: 0.9
                 });
                 const star = new THREE.Mesh(starGeometry, starMaterial);
                 
-                // Glow effect
-                const glowGeometry = new THREE.SphereGeometry(0.15, 16, 16);
-                const glowMaterial = new THREE.MeshBasicMaterial({
+                // Inner glow
+                const innerGlowGeometry = new THREE.SphereGeometry(baseRadius * 1.5, 16, 16);
+                const innerGlowMaterial = new THREE.MeshBasicMaterial({
                     color: starColors[i],
                     transparent: true,
-                    opacity: 0.3
+                    opacity: 0.4
                 });
-                const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                const innerGlow = new THREE.Mesh(innerGlowGeometry, innerGlowMaterial);
                 
-                // Point light for each star
-                const light = new THREE.PointLight(starColors[i], 1, 50);
+                // Outer glow
+                const outerGlowGeometry = new THREE.SphereGeometry(baseRadius * 2.5, 16, 16);
+                const outerGlowMaterial = new THREE.MeshBasicMaterial({
+                    color: starColors[i],
+                    transparent: true,
+                    opacity: 0.2
+                });
+                const outerGlow = new THREE.Mesh(outerGlowGeometry, outerGlowMaterial);
+                
+                // Point light for each star with enhanced properties
+                const light = new THREE.PointLight(starColors[i], 2, 100);
                 light.castShadow = true;
+                light.shadow.camera.near = 0.1;
+                light.shadow.camera.far = 100;
+                light.shadow.mapSize.width = 1024;
+                light.shadow.mapSize.height = 1024;
                 
                 starGroup.add(star);
-                starGroup.add(glow);
+                starGroup.add(innerGlow);
+                starGroup.add(outerGlow);
                 starGroup.add(light);
                 
                 scene.add(starGroup);
                 stars.push(starGroup);
 
-                // Create trajectory line
+                // Enhanced trajectory line
                 const trajectoryGeometry = new THREE.BufferGeometry();
                 const trajectoryMaterial = new THREE.LineBasicMaterial({ 
                     color: starColors[i],
                     transparent: true,
-                    opacity: 0.6,
-                    linewidth: 2
+                    opacity: 0.7,
+                    linewidth: 3
                 });
                 const trajectoryLine = new THREE.Line(trajectoryGeometry, trajectoryMaterial);
                 scene.add(trajectoryLine);
@@ -476,14 +572,62 @@
         }
 
         function updateCameraPosition() {
-            camera.position.x = cameraDistance * Math.sin(cameraRotationY) * Math.cos(cameraRotationX);
-            camera.position.y = cameraDistance * Math.sin(cameraRotationX);
-            camera.position.z = cameraDistance * Math.cos(cameraRotationY) * Math.cos(cameraRotationX);
-            camera.lookAt(0, 0, 0);
+            if (autoFocus) {
+                camera.position.x = systemCenter.x + cameraDistance * Math.sin(cameraRotationY) * Math.cos(cameraRotationX);
+                camera.position.y = systemCenter.y + cameraDistance * Math.sin(cameraRotationX);
+                camera.position.z = systemCenter.z + cameraDistance * Math.cos(cameraRotationY) * Math.cos(cameraRotationX);
+                camera.lookAt(systemCenter);
+            } else {
+                camera.position.x = cameraDistance * Math.sin(cameraRotationY) * Math.cos(cameraRotationX);
+                camera.position.y = cameraDistance * Math.sin(cameraRotationX);
+                camera.position.z = cameraDistance * Math.cos(cameraRotationY) * Math.cos(cameraRotationX);
+                camera.lookAt(0, 0, 0);
+            }
+        }
+        
+        function calculateSystemBounds(positions) {
+            if (!positions || positions.length === 0) return;
+            
+            let minX = Infinity, maxX = -Infinity;
+            let minY = Infinity, maxY = -Infinity;
+            let minZ = Infinity, maxZ = -Infinity;
+            
+            positions.forEach(pos => {
+                if (pos) {
+                    minX = Math.min(minX, pos[0]);
+                    maxX = Math.max(maxX, pos[0]);
+                    minY = Math.min(minY, pos[1]);
+                    maxY = Math.max(maxY, pos[1]);
+                    minZ = Math.min(minZ, pos[2]);
+                    maxZ = Math.max(maxZ, pos[2]);
+                }
+            });
+            
+            // Calculate center of the system
+            systemCenter.set(
+                (minX + maxX) / 2,
+                (minY + maxY) / 2,
+                (minZ + maxZ) / 2
+            );
+            
+            // Calculate system size
+            const sizeX = maxX - minX;
+            const sizeY = maxY - minY;
+            const sizeZ = maxZ - minZ;
+            systemSize = Math.max(sizeX, sizeY, sizeZ);
+            
+            // Auto-adjust camera distance based on system size
+            if (autoFocus) {
+                const targetDistance = Math.max(systemSize * 2, 5);
+                cameraDistance = cameraDistance * 0.95 + targetDistance * 0.05; // Smooth transition
+            }
         }
 
         function updateVisualization(data) {
             if (!data.positions) return;
+
+            // Calculate system bounds for auto-focus
+            calculateSystemBounds(data.positions);
 
             // Update star positions
             for (let i = 0; i < 3; i++) {
@@ -493,26 +637,61 @@
                         data.positions[i][1],
                         data.positions[i][2]
                     );
+                    
+                    // Animate star scale based on velocity (subtle effect)
+                    if (data.velocities && data.velocities[i]) {
+                        const velocity = Math.sqrt(
+                            data.velocities[i][0] ** 2 + 
+                            data.velocities[i][1] ** 2 + 
+                            data.velocities[i][2] ** 2
+                        );
+                        const scale = 1 + velocity * 0.1; // Subtle scaling
+                        stars[i].children[0].scale.setScalar(scale);
+                    }
                 }
 
-                // Update trajectories
+                // Update trajectories with enhanced visual effects
                 if (data.trajectories[i] && data.trajectories[i].length > 1) {
                     const points = data.trajectories[i].map(pos => 
                         new THREE.Vector3(pos[0], pos[1], pos[2])
                     );
                     trajectoryLines[i].geometry.setFromPoints(points);
+                    
+                    // Fade trajectory based on age
+                    const maxPoints = data.trajectories[i].length;
+                    if (maxPoints > 10) {
+                        const fadeStart = Math.max(0, maxPoints - 200);
+                        trajectoryLines[i].material.opacity = 0.3 + 0.4 * (maxPoints - fadeStart) / 200;
+                    }
                 }
+            }
+            
+            // Update camera position if auto-focus is enabled
+            if (autoFocus) {
+                updateCameraPosition();
             }
         }
 
         function animate() {
             animationId = requestAnimationFrame(animate);
             
-            // Gentle rotation of star glow
+            // Enhanced star effects
             stars.forEach((star, i) => {
-                if (star.children[1]) { // Glow effect
-                    star.children[1].rotation.x += 0.01;
-                    star.children[1].rotation.y += 0.01;
+                if (star.children.length > 1) {
+                    // Gentle rotation of glow effects
+                    star.children[1].rotation.x += 0.008 + i * 0.002; // Inner glow
+                    star.children[1].rotation.y += 0.012 + i * 0.003;
+                    
+                    if (star.children[2]) { // Outer glow
+                        star.children[2].rotation.x -= 0.005 + i * 0.001;
+                        star.children[2].rotation.y -= 0.008 + i * 0.002;
+                    }
+                    
+                    // Subtle pulsing effect
+                    const time = Date.now() * 0.001;
+                    const pulse = 1 + 0.05 * Math.sin(time + i * 2);
+                    if (star.children[1]) star.children[1].scale.setScalar(pulse);
+                    if (star.children[2]) star.children[2].scale.setScalar(pulse * 0.8);
                 }
             });
             
@@ -705,6 +884,15 @@
 
             document.getElementById('mass3').value = 0.1;  // Lighter third body
             applyCustomSettings();
+        }
+
+        function toggleAutoFocus() {
+            autoFocus = document.getElementById('autoFocusToggle').checked;
+            if (!autoFocus) {
+                // Reset to center view when disabling auto-focus
+                systemCenter.set(0, 0, 0);
+                updateCameraPosition();
+            }
         }
 
         // Initialize everything
