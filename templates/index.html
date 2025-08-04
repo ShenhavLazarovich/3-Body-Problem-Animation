@@ -753,26 +753,18 @@
                 }
 
                 // Update trajectories with enhanced visual effects
-                if (data.trajectories[i] && data.trajectories[i].length > 0) {
-                    if (data.trajectories[i].length === 1) {
-                        // Clear trajectory when only one point (reset state)
-                        trajectoryLines[i].geometry.setFromPoints([]);
-                    } else {
-                        const points = data.trajectories[i].map(pos => 
-                            new THREE.Vector3(pos[0], pos[1], pos[2])
-                        );
-                        trajectoryLines[i].geometry.setFromPoints(points);
+                if (data.trajectories[i] && data.trajectories[i].length > 1) {
+                    const points = data.trajectories[i].map(pos => 
+                        new THREE.Vector3(pos[0], pos[1], pos[2])
+                    );
+                    trajectoryLines[i].geometry.setFromPoints(points);
 
-                        // Fade trajectory based on age
-                        const maxPoints = data.trajectories[i].length;
-                        if (maxPoints > 10) {
-                            const fadeStart = Math.max(0, maxPoints - 200);
-                            trajectoryLines[i].material.opacity = 0.3 + 0.4 * (maxPoints - fadeStart) / 200;
-                        }
+                    // Fade trajectory based on age
+                    const maxPoints = data.trajectories[i].length;
+                    if (maxPoints > 10) {
+                        const fadeStart = Math.max(0, maxPoints - 200);
+                        trajectoryLines[i].material.opacity = 0.3 + 0.4 * (maxPoints - fadeStart) / 200;
                     }
-                } else {
-                    // Clear trajectory if no data
-                    trajectoryLines[i].geometry.setFromPoints([]);
                 }
             }
 
@@ -818,19 +810,13 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                // Get response text first to debug JSON issues
-                const responseText = await response.text();
-                
-                // Try to parse JSON
-                let data;
-                try {
-                    data = JSON.parse(responseText);
-                } catch (jsonError) {
-                    console.error('JSON parse error:', jsonError);
-                    console.error('Response text:', responseText);
-                    throw new Error('Invalid JSON response');
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Response is not JSON');
                 }
                 
+                const data = await response.json();
                 updateVisualization(data);
 
                 // Update status
@@ -879,13 +865,9 @@
                 // Stop any running simulation first
                 await fetch('/api/stop', { method: 'POST' });
                 
-                // Clear trajectory lines immediately and dispose of old geometry
+                // Clear trajectory lines immediately
                 trajectoryLines.forEach(line => {
-                    if (line.geometry) {
-                        line.geometry.dispose();
-                        line.geometry = new THREE.BufferGeometry();
-                        line.geometry.setFromPoints([]);
-                    }
+                    line.geometry.setFromPoints([]);
                 });
                 
                 // Reset the simulation
@@ -894,10 +876,8 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                // Force immediate update to get the reset state
-                setTimeout(async () => {
-                    await fetchState();
-                }, 50);
+                // Force update to get the reset state
+                await fetchState();
                 
                 loadDefaultValues();
             } catch (error) {
@@ -1126,8 +1106,8 @@
             initThreeJS();
             loadDefaultValues();
 
-            // Update visualization every 16ms (60 FPS) for smooth animation
-            setInterval(fetchState, 16);
+            // Update visualization every 50ms (20 FPS) for stable performance
+            setInterval(fetchState, 50);
         });
     </script>
 </body>
