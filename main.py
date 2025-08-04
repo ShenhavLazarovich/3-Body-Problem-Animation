@@ -32,23 +32,22 @@ class ThreeBodySimulation:
         self.atol = 1e-12  # Absolute tolerance
         
     def reset_to_default(self):
-        """Reset to a stable figure-8 configuration that shows clear gravitational motion"""
+        """Reset to a 3D configuration that shows clear gravitational motion"""
         # Equal masses
         self.masses = np.array([1.0, 1.0, 1.0])
         
-        # Figure-8 initial conditions (classic three-body solution)
-        # These are well-known stable initial conditions
+        # 3D initial conditions - positioned in different planes for true 3D motion
         self.positions = np.array([
-            [-0.97000436, 0.24308753, 0.0],
-            [0.97000436, -0.24308753, 0.0],
-            [0.0, 0.0, 0.0]
+            [1.0, 0.0, 0.5],      # Star 1 above xy-plane
+            [-0.5, 0.866, -0.3],   # Star 2 below xy-plane 
+            [-0.5, -0.866, 0.2]   # Star 3 slightly above xy-plane
         ])
         
-        # Carefully chosen velocities for stable motion
+        # 3D velocities for complex orbital motion
         self.velocities = np.array([
-            [0.4662036850, 0.4323657300, 0.0],
-            [0.4662036850, 0.4323657300, 0.0],
-            [-0.93240737, -0.86473146, 0.0]
+            [0.2, 0.5, 0.3],      # Star 1 with z-component
+            [-0.4, 0.1, -0.2],    # Star 2 with negative z-component
+            [0.2, -0.6, 0.4]      # Star 3 with positive z-component
         ])
         
         self.time = 0
