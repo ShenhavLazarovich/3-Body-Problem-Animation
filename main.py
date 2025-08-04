@@ -193,14 +193,26 @@ class ThreeBodySimulation:
     
     def get_state(self):
         """Get current simulation state"""
-        return {
-            'positions': self.positions.tolist(),
-            'velocities': self.velocities.tolist(),
-            'masses': self.masses.tolist(),
-            'time': self.time,
-            'trajectories': self.trajectories,
-            'running': self.running
-        }
+        try:
+            state = {
+                'positions': self.positions.tolist(),
+                'velocities': self.velocities.tolist(),
+                'masses': self.masses.tolist(),
+                'time': float(self.time),
+                'trajectories': self.trajectories,
+                'running': bool(self.running)
+            }
+            return state
+        except Exception as e:
+            print(f"Error creating state: {e}")
+            return {
+                'positions': [[0,0,0],[0,0,0],[0,0,0]],
+                'velocities': [[0,0,0],[0,0,0],[0,0,0]],
+                'masses': [1.0, 1.0, 1.0],
+                'time': 0.0,
+                'trajectories': [[], [], []],
+                'running': False
+            }
 
 # Global simulation instance
 simulation = ThreeBodySimulation()
