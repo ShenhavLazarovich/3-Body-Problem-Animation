@@ -624,17 +624,51 @@
         }
 
         function updateCameraPosition() {
-            if (autoFocus) {
-                camera.position.x = systemCenter.x + cameraDistance * Math.sin(cameraRotationY) * Math.cos(cameraRotationX);
-                camera.position.y = systemCenter.y + cameraDistance * Math.sin(cameraRotationX);
-                camera.position.z = systemCenter.z + cameraDistance * Math.cos(cameraRotationY) * Math.cos(cameraRotationX);
-                camera.lookAt(systemCenter);
-            } else {
-                camera.position.x = cameraDistance * Math.sin(cameraRotationY) * Math.cos(cameraRotationX);
-                camera.position.y = cameraDistance * Math.sin(cameraRotationX);
-                camera.position.z = cameraDistance * Math.cos(cameraRotationY) * Math.cos(cameraRotationX);
-                camera.lookAt(0, 0, 0);
+            if (autoFocus && stars.length > 0) {
+                // Calculate system center and size
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+                let minZ = Infinity, maxZ = -Infinity;
+
+                stars.forEach(star => {
+                    const pos = star.position;
+                    minX = Math.min(minX, pos.x);
+                    maxX = Math.max(maxX, pos.x);
+                    minY = Math.min(minY, pos.y);
+                    maxY = Math.max(maxY, pos.y);
+                    minZ = Math.min(minZ, pos.z);
+                    maxZ = Math.max(maxZ, pos.z);
+                });
+
+                systemCenter.set(
+                    (minX + maxX) / 2,
+                    (minY + maxY) / 2,
+                    (minZ + maxZ) / 2
+                );
+
+                systemSize = Math.max(
+                    maxX - minX,
+                    maxY - minY,
+                    maxZ - minZ
+                );
+
+                // Auto-adjust camera distance with reasonable bounds
+                const targetDistance = Math.max(systemSize * 2.5, 3);
+                const maxDistance = 50; // Prevent infinite zoom-out
+                const minDistance = 2;  // Prevent getting too close
+
+                cameraDistance = Math.max(minDistance, Math.min(maxDistance, targetDistance));
             }
+
+            // Apply rotation and distance
+            const phi = cameraRotationY;
+            const theta = cameraRotationX;
+
+            camera.position.x = systemCenter.x + cameraDistance * Math.sin(phi) * Math.cos(theta);
+            camera.position.y = systemCenter.y + cameraDistance * Math.sin(theta);
+            camera.position.z = systemCenter.z + cameraDistance * Math.cos(phi) * Math.cos(theta);
+
+            camera.lookAt(systemCenter);
         }
 
         function calculateSystemBounds(positions) {
@@ -812,8 +846,7 @@
             ];
 
             const masses = [
-                parseFloat(document.getElementById('mass1').value),
-                parseFloat(document.getElementById('mass2').value),
+                parseFloat(document.getElementById('mass1').value),                parseFloat(document.getElementById('mass2').value),
                 parseFloat(document.getElementById('mass3').value)
             ];
 

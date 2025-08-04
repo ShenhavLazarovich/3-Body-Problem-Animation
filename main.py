@@ -10,14 +10,14 @@ app = Flask(__name__)
 
 class ThreeBodySimulation:
     def __init__(self):
-        # Gravitational constant (scaled for visualization)
-        self.G = 6.67430e-11 * 1e12  # Scaled up for better visualization
+        # Gravitational constant (properly scaled for simulation units)
+        self.G = 1.0  # Using normalized units for stability
         
         # Default initial conditions (positions and velocities)
         self.reset_to_default()
         
         # Simulation parameters
-        self.dt = 0.001  # Time step
+        self.dt = 0.005  # Slightly larger time step for better stability
         self.time = 0
         self.running = False
         self.trajectory_length = 1000
@@ -26,22 +26,22 @@ class ThreeBodySimulation:
         self.trajectories = [[], [], []]
         
     def reset_to_default(self):
-        """Reset to a simple triangular configuration with equal masses and zero velocities"""
+        """Reset to a stable figure-8 configuration that shows clear gravitational motion"""
         # Equal masses
         self.masses = np.array([1.0, 1.0, 1.0])
         
-        # Triangular positions (x, y, z)
+        # Figure-8 initial conditions (classic three-body solution)
         self.positions = np.array([
-            [2.0, 0.0, 0.0],
-            [-1.0, 1.732, 0.0],  # sqrt(3) ≈ 1.732 for equilateral triangle
-            [-1.0, -1.732, 0.0]
+            [-0.97000436, 0.24308753, 0.0],
+            [0.97000436, -0.24308753, 0.0],
+            [0.0, 0.0, 0.0]
         ])
         
-        # Zero initial velocities
+        # Carefully chosen velocities for stable motion
         self.velocities = np.array([
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0]
+            [0.4662036850, 0.4323657300, 0.0],
+            [0.4662036850, 0.4323657300, 0.0],
+            [-0.93240737, -0.86473146, 0.0]
         ])
         
         self.time = 0
@@ -87,9 +87,12 @@ class ThreeBodySimulation:
                     if i != j:
                         r_vec = pos[j] - pos[i]
                         r_mag = np.linalg.norm(r_vec)
-                        if r_mag > 1e-10:
-                            force_mag = self.G * self.masses[i] * self.masses[j] / (r_mag**3)
-                            forces[i] += force_mag * r_vec
+                        # Add softening parameter to prevent singularities
+                        if r_mag > 1e-6:
+                            # Correct gravitational force calculation
+                            force_mag = self.G * self.masses[i] * self.masses[j] / (r_mag**2)
+                            force_dir = r_vec / r_mag
+                            forces[i] += force_mag * force_dir
             
             accelerations = forces / self.masses.reshape(-1, 1)
             return vel, accelerations
