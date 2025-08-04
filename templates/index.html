@@ -911,23 +911,31 @@
             canvas.addEventListener('mousemove', (e) => {
                 if (!mouseDown) return;
 
-                const deltaX = e.clientX - mouseX;
-                const deltaY = e.clientY - mouseY;
+                // Only rotate if right mouse button is being held
+                if (e.buttons === 2 || (mouseDown && e.button === undefined)) {
+                    const deltaX = e.clientX - mouseX;
+                    const deltaY = e.clientY - mouseY;
 
-                targetCameraRotationY += deltaX * MOUSE_SENSITIVITY;
-                targetCameraRotationX += deltaY * MOUSE_SENSITIVITY;
+                    targetCameraRotationY += deltaX * MOUSE_SENSITIVITY;
+                    targetCameraRotationX += deltaY * MOUSE_SENSITIVITY;
 
-                // Limit vertical rotation
-                targetCameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, targetCameraRotationX));
+                    // Limit vertical rotation
+                    targetCameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, targetCameraRotationX));
 
-                mouseX = e.clientX;
-                mouseY = e.clientY;
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                }
             });
 
             canvas.addEventListener('mouseup', (e) => {
                 if (e.button === 2) {
                     mouseDown = false;
                 }
+            });
+
+            // Handle mouse leave to stop rotation
+            canvas.addEventListener('mouseleave', () => {
+                mouseDown = false;
             });
 
             // Prevent context menu on right-click
