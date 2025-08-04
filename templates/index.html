@@ -830,12 +830,19 @@
         }
 
         async function resetSimulation() {
-            await fetch('/api/reset', { method: 'POST' });
+            // Stop any running simulation first
+            await fetch('/api/stop', { method: 'POST' });
             
-            // Immediately clear trajectory lines
+            // Clear trajectory lines immediately
             trajectoryLines.forEach(line => {
                 line.geometry.setFromPoints([]);
             });
+            
+            // Reset the simulation
+            await fetch('/api/reset', { method: 'POST' });
+            
+            // Force update to get the reset state
+            await fetchState();
             
             loadDefaultValues();
         }

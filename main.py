@@ -51,7 +51,12 @@ class ThreeBodySimulation:
         ])
         
         self.time = 0
+        # Completely clear trajectories
         self.trajectories = [[], [], []]
+        
+        # Force garbage collection to ensure clean state
+        import gc
+        gc.collect()
     
     def set_initial_conditions(self, positions, velocities, masses):
         """Set custom initial conditions"""
@@ -59,7 +64,12 @@ class ThreeBodySimulation:
         self.velocities = np.array(velocities)
         self.masses = np.array(masses)
         self.time = 0
+        # Completely clear trajectories
         self.trajectories = [[], [], []]
+        
+        # Force garbage collection to ensure clean state
+        import gc
+        gc.collect()
     
     def three_body_ode(self, t, y):
         """
