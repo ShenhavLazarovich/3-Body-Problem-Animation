@@ -23,11 +23,7 @@
             position: absolute;
             top: 0;
             left: 0;
-            cursor: grab;
-        }
-
-        #canvas:active {
-            cursor: grabbing;
+            cursor: default;
         }
 
         .controls {
@@ -346,7 +342,7 @@
 
         <div class="info">
             <strong>Instructions:</strong><br>
-            • Use mouse to rotate the view<br>
+            • Right-click and drag to rotate the view<br>
             • Scroll to zoom in/out<br>
             • Adjust initial conditions above<br>
             • Watch the gravitational dance unfold!
@@ -903,9 +899,13 @@
             const canvas = document.getElementById('canvas');
 
             canvas.addEventListener('mousedown', (e) => {
-                mouseDown = true;
-                mouseX = e.clientX;
-                mouseY = e.clientY;
+                // Only start rotation on right mouse button (button 2)
+                if (e.button === 2) {
+                    mouseDown = true;
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                    e.preventDefault(); // Prevent context menu
+                }
             });
 
             canvas.addEventListener('mousemove', (e) => {
@@ -924,8 +924,15 @@
                 mouseY = e.clientY;
             });
 
-            canvas.addEventListener('mouseup', () => {
-                mouseDown = false;
+            canvas.addEventListener('mouseup', (e) => {
+                if (e.button === 2) {
+                    mouseDown = false;
+                }
+            });
+
+            // Prevent context menu on right-click
+            canvas.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
             });
 
             canvas.addEventListener('wheel', (e) => {
