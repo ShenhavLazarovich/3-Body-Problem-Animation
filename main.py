@@ -5,6 +5,7 @@ import json
 import threading
 import time
 from datetime import datetime
+from scipy.integrate import solve_ivp
 
 app = Flask(__name__)
 
@@ -17,13 +18,18 @@ class ThreeBodySimulation:
         self.reset_to_default()
         
         # Simulation parameters
-        self.dt = 0.005  # Slightly larger time step for better stability
+        self.dt = 0.01  # Time step for output
         self.time = 0
         self.running = False
-        self.trajectory_length = 1000
+        self.trajectory_length = 2000
         
         # Store trajectories for visualization
         self.trajectories = [[], [], []]
+        
+        # Integration method settings
+        self.integrator_method = 'DOP853'  # High-order Runge-Kutta method
+        self.rtol = 1e-9  # Relative tolerance
+        self.atol = 1e-12  # Absolute tolerance
         
     def reset_to_default(self):
         """Reset to a stable figure-8 configuration that shows clear gravitational motion"""
@@ -31,6 +37,7 @@ class ThreeBodySimulation:
         self.masses = np.array([1.0, 1.0, 1.0])
         
         # Figure-8 initial conditions (classic three-body solution)
+        # These are well-known stable initial conditions
         self.positions = np.array([
             [-0.97000436, 0.24308753, 0.0],
             [0.97000436, -0.24308753, 0.0],
@@ -55,60 +62,102 @@ class ThreeBodySimulation:
         self.time = 0
         self.trajectories = [[], [], []]
     
-    def compute_forces(self):
-        """Compute gravitational forces between all bodies"""
+    def three_body_ode(self, t, y):
+        """
+        ODE system for the three-body problem
+        y contains [x1, y1, z1, x2, y2, z2, x3, y3, z3, vx1, vy1, vz1, vx2, vy2, vz2, vx3, vy3, vz3]
+        """
+        # Extract positions and velocities
+        pos = y[:9].reshape(3, 3)  # positions of 3 bodies
+        vel = y[9:].reshape(3, 3)  # velocities of 3 bodies
+        
+        # Calculate accelerations
+        acc = np.zeros_like(pos)
+        
+        for i in range(3):
+            for j in range(3):
+                if i != j:
+                    # Vector from body i to body j
+                    r_vec = pos[j] - pos[i]
+                    r_mag = np.linalg.norm(r_vec)
+                    
+                    # Avoid singularity with small softening parameter
+                    if r_mag > 1e-8:
+                        # Gravitational acceleration
+                        acc[i] += self.G * self.masses[j] * r_vec / (r_mag**3)
+        
+        # Return derivatives: velocities and accelerations
+        dydt = np.concatenate([vel.flatten(), acc.flatten()])
+        return dydt
+    
+    def step(self):
+        """Perform one integration step using scipy's advanced ODE solvers"""
+        if not self.running:
+            return
+        
+        # Prepare initial conditions for ODE solver
+        y0 = np.concatenate([self.positions.flatten(), self.velocities.flatten()])
+        
+        # Time span for this step
+        t_span = (self.time, self.time + self.dt)
+        t_eval = [self.time + self.dt]
+        
+        try:
+            # Solve ODE using high-precision method
+            sol = solve_ivp(
+                self.three_body_ode, 
+                t_span, 
+                y0, 
+                method=self.integrator_method,
+                t_eval=t_eval,
+                rtol=self.rtol,
+                atol=self.atol,
+                dense_output=False
+            )
+            
+            if sol.success and len(sol.y) > 0:
+                # Extract new positions and velocities
+                y_new = sol.y[:, -1]
+                self.positions = y_new[:9].reshape(3, 3)
+                self.velocities = y_new[9:].reshape(3, 3)
+                
+                # Store trajectories
+                for i in range(3):
+                    if len(self.trajectories[i]) >= self.trajectory_length:
+                        self.trajectories[i].pop(0)
+                    self.trajectories[i].append(self.positions[i].tolist())
+                
+                self.time += self.dt
+            else:
+                print(f"ODE solver failed: {sol.message}")
+                
+        except Exception as e:
+            print(f"Integration error: {e}")
+            # Fall back to simple method if scipy fails
+            self.simple_step()
+    
+    def simple_step(self):
+        """Fallback simple integration method"""
+        # Calculate forces
         forces = np.zeros_like(self.positions)
         
         for i in range(3):
             for j in range(3):
                 if i != j:
-                    # Vector from i to j
                     r_vec = self.positions[j] - self.positions[i]
                     r_mag = np.linalg.norm(r_vec)
                     
-                    # Avoid singularity
-                    if r_mag > 1e-10:
-                        # Gravitational force
-                        force_mag = self.G * self.masses[i] * self.masses[j] / (r_mag**3)
-                        forces[i] += force_mag * r_vec
+                    if r_mag > 1e-8:
+                        force_mag = self.G * self.masses[i] * self.masses[j] / (r_mag**2)
+                        force_dir = r_vec / r_mag
+                        forces[i] += force_mag * force_dir
         
-        return forces
-    
-    def step(self):
-        """Perform one integration step using Runge-Kutta 4th order"""
-        if not self.running:
-            return
-            
-        # RK4 integration for better accuracy
-        def derivatives(pos, vel):
-            forces = np.zeros_like(pos)
-            for i in range(3):
-                for j in range(3):
-                    if i != j:
-                        r_vec = pos[j] - pos[i]
-                        r_mag = np.linalg.norm(r_vec)
-                        # Add softening parameter to prevent singularities
-                        if r_mag > 1e-6:
-                            # Correct gravitational force calculation
-                            force_mag = self.G * self.masses[i] * self.masses[j] / (r_mag**2)
-                            force_dir = r_vec / r_mag
-                            forces[i] += force_mag * force_dir
-            
-            accelerations = forces / self.masses.reshape(-1, 1)
-            return vel, accelerations
+        # Update using Verlet integration
+        accelerations = forces / self.masses.reshape(-1, 1)
         
-        # RK4 steps
-        k1_pos, k1_vel = derivatives(self.positions, self.velocities)
-        k2_pos, k2_vel = derivatives(self.positions + 0.5*self.dt*k1_pos, 
-                                   self.velocities + 0.5*self.dt*k1_vel)
-        k3_pos, k3_vel = derivatives(self.positions + 0.5*self.dt*k2_pos, 
-                                   self.velocities + 0.5*self.dt*k2_vel)
-        k4_pos, k4_vel = derivatives(self.positions + self.dt*k3_pos, 
-                                   self.velocities + self.dt*k3_vel)
-        
-        # Update positions and velocities
-        self.positions += self.dt/6 * (k1_pos + 2*k2_pos + 2*k3_pos + k4_pos)
-        self.velocities += self.dt/6 * (k1_vel + 2*k2_vel + 2*k3_vel + k4_vel)
+        # Velocity-Verlet method
+        self.positions += self.velocities * self.dt + 0.5 * accelerations * self.dt**2
+        self.velocities += accelerations * self.dt
         
         # Store trajectories
         for i in range(3):
@@ -137,7 +186,7 @@ def simulation_loop():
     while True:
         if simulation.running:
             simulation.step()
-        time.sleep(0.01)  # 100 FPS simulation
+        time.sleep(0.005)  # 200 FPS simulation for smooth motion
 
 # Start simulation thread
 simulation_thread = threading.Thread(target=simulation_loop, daemon=True)
